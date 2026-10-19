@@ -35,7 +35,7 @@ def test_scan_parses_with_safe_defaults(tmp_path: Path) -> None:
     assert args.dry_run is False
 
 
-@pytest.mark.parametrize("argv", [["gui"], ["undo", "manifest_x.json"]])
+@pytest.mark.parametrize("argv", [["gui"]])
 def test_commands_not_implemented_yet(argv: list[str]) -> None:
     assert main(argv) == EXIT_NOT_IMPLEMENTED
 
@@ -43,3 +43,7 @@ def test_commands_not_implemented_yet(argv: list[str]) -> None:
 def test_command_is_required() -> None:
     with pytest.raises(SystemExit):
         main([])
+
+
+def test_undo_missing_manifest_is_an_error(tmp_path: Path) -> None:
+    assert main(["undo", str(tmp_path / "manifest_x.json")]) == 1

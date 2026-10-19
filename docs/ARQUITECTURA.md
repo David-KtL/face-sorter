@@ -44,7 +44,7 @@ flowchart LR
 - `services/dedupe.py` (Fase 5): agrupa duplicados exactos (mismo SHA-256) y casi duplicados (Hamming ≤ umbral configurable); elige la copia a conservar con la regla de RF-18; verifica el invariante RF-19 (≥ 1 copia por grupo) antes de actuar; genera un plan de movimientos a `_duplicados/` que ejecuta el `organizer` (manifiesto + `undo`). Papelera (`send2trash`) solo con confirmación explícita.
   - **Búsqueda eficiente de casi duplicados** (nada de O(n²) en Python puro): los hashes van en un array `uint64`. Se usa *bucketing* por bandas: el hash de 64 bits se parte en `t + 1` bandas (t = umbral); por el principio del palomar, dos hashes a distancia ≤ t coinciden en al menos una banda. Solo se comparan los candidatos que comparten banda, con XOR + `bitwise_count` vectorizado. Para colecciones pequeñas basta la comparación vectorizada por bloques.
   - Los duplicados exactos se agrupan antes (por SHA-256) y solo un representante de cada grupo entra en la búsqueda perceptual.
-- `services/organizer.py`: aplica el plan; escribe `manifest_<fecha>.json`; implementa `undo`.
+- `services/organizer.py`: aplica el plan (`apply_plan`) y lo revierte (`undo`). Creación exclusiva (nunca sobrescribe), verificación SHA-256, comprobación previa de espacio y rutas, hardlink → copia si no es posible, mover en dos fases con confirmación. `manifest_<fecha>.json` en la salida: entradas (`created` / `skipped_identical` / `failed`, método `copy`/`link`, hash), originales retirados (`pending` / `done` / `kept`) y carpetas creadas. Detalle en ADR 0007.
 
 ## Modelo de datos (SQLite)
 - `meta(key, value)`: versión del esquema y huella del modelo.

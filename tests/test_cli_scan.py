@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from face_sorter.__main__ import EXIT_ERROR, EXIT_NOT_IMPLEMENTED, EXIT_OK, main
+from face_sorter.__main__ import EXIT_ERROR, EXIT_OK, main
 from face_sorter.core.image_io import sha256_file
 from tests.fakes import write_face_image
 
@@ -23,9 +23,10 @@ def test_output_must_differ_from_input(tmp_path: Path) -> None:
     assert main(["scan", str(tmp_path), "--out", str(tmp_path), "--dry-run"]) == EXIT_ERROR
 
 
-def test_applying_is_not_available_yet(tmp_path: Path) -> None:
-    # Without --dry-run nothing may be touched until the organizer exists (phase 3).
-    assert main(["scan", str(tmp_path), "--out", str(tmp_path / "o")]) == EXIT_NOT_IMPLEMENTED
+def test_move_without_tty_needs_yes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    argv = ["scan", str(tmp_path), "--out", str(tmp_path / "o"), "--mode", "move"]
+    assert main(argv) == EXIT_ERROR
     assert not (tmp_path / "o").exists()
 
 
@@ -80,3 +81,65 @@ def test_missing_models_is_a_clear_error(
     argv = ["scan", str(src), "--out", str(tmp_path / "o"), "--dry-run", "-q"]
     assert main(argv + ["--cache", str(tmp_path / "c.sqlite")]) == EXIT_ERROR
     assert "download_models" in capsys.readouterr().err
+
+
+def _copy_people(lfw_people: dict[str, list[Path]], src: Path) -> dict[str, str]:
+    for name, photos in list(lfw_people.items())[:2]:
+        for photo in photos[:2]:
+            dest = src / name[:3] / photo.name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(photo, dest)
+    return {p.relative_to(src).as_posix(): sha256_file(p) for p in src.rglob("*") if p.is_file()}
+
+
+def test_scan_apply_then_undo_end_to_end(
+    tmp_path: Path,
+    lfw_people: dict[str, list[Path]],
+    detector_model: Path,
+    recognizer_model: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    src, out = tmp_path / "photos", tmp_path / "out"
+    before = _copy_people(lfw_people, src)
+    argv = ["scan", str(src), "--out", str(out), "-q", "--cache", str(tmp_path / "c.sqlite")]
+    assert main(argv) == EXIT_OK
+    assert "Created: 4" in capsys.readouterr().out
+    copies = sorted(p.relative_to(out).as_posix() for p in out.rglob("*.jpg"))
+    assert len(copies) == 4 and all(c.startswith("Persona_00") for c in copies)
+    assert before == {
+        p.relative_to(src).as_posix(): sha256_file(p) for p in src.rglob("*") if p.is_file()
+    }
+
+    manifest = next(out.glob("manifest_*.json"))
+    assert main(["undo", str(manifest), "--dry-run"]) == EXIT_OK
+    assert len(list(out.rglob("*.jpg"))) == 4
+    assert main(["undo", str(manifest)]) == EXIT_OK
+    assert list(out.rglob("*.jpg")) == []
+
+
+def test_scan_move_asks_and_respects_no(
+    tmp_path: Path,
+    lfw_people: dict[str, list[Path]],
+    detector_model: Path,
+    recognizer_model: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    src, out = tmp_path / "photos", tmp_path / "out"
+    before = _copy_people(lfw_people, src)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    argv = ["scan", str(src), "--out", str(out), "-q", "--mode", "move"]
+    assert main(argv + ["--cache", str(tmp_path / "c.sqlite")]) == EXIT_OK
+    assert "Nothing was changed" in capsys.readouterr().out
+    assert not out.exists()
+    assert len(before) == sum(1 for p in src.rglob("*") if p.is_file())
+
+    monkeypatch.setattr("builtins.input", lambda prompt: "s")
+    assert main(argv + ["--cache", str(tmp_path / "c.sqlite")]) == EXIT_OK
+    assert [p for p in src.rglob("*") if p.is_file()] == []
+    manifest = next(out.glob("manifest_*.json"))
+    assert main(["undo", str(manifest)]) == EXIT_OK
+    assert before == {
+        p.relative_to(src).as_posix(): sha256_file(p) for p in src.rglob("*") if p.is_file()
+    }

@@ -104,6 +104,12 @@ NO_FACE_FOLDER = "_sin_rostro"
 LOW_QUALITY_FOLDER = "_baja_calidad"
 UNCLASSIFIED_FOLDER = "_sin_clasificar"
 
+# Organizer (phase 3): manifests go to the output folder, e.g. manifest_20261019-153000.json
+MANIFEST_PREFIX = "manifest_"
+# The manifest is rewritten after this many file operations (and always at the end).
+MANIFEST_SAVE_EVERY = 50
+COPY_CHUNK_SIZE = 1 << 20  # bytes
+
 
 @dataclass(frozen=True)
 class Settings:

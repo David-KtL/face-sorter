@@ -46,16 +46,18 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         return _error(f"input folder not found: {source}")
     if output == source:
         return _error("the output folder must be different from the input folder")
-    if not args.dry_run:
-        return _not_implemented("Applying the plan (scan without --dry-run)", 3)
+    settings = _settings_from_args(args)
+    moving = settings.output_mode is OutputMode.MOVE and not args.dry_run
+    if moving and not args.yes and not sys.stdin.isatty():
+        return _error("--mode move needs confirmation: run it interactively or add --yes")
 
     # Heavy imports (OpenCV, scikit-learn) only when actually scanning.
     from tqdm import tqdm
 
+    from face_sorter.services.organizer import OrganizerError, apply_plan
     from face_sorter.services.pipeline import Pipeline, Progress
     from face_sorter.services.plan import build_plan
 
-    settings = _settings_from_args(args)
     with tqdm(unit="img", disable=args.quiet or None, file=sys.stderr) as bar:
 
         def on_progress(p: Progress) -> None:
@@ -72,12 +74,48 @@ def _cmd_scan(args: argparse.Namespace) -> int:
             return _error(str(exc))
 
     plan = build_plan(result, output, settings.output_mode)
-    print("DRY RUN: no files were copied, moved or modified.\n")
+    if args.dry_run:
+        print("DRY RUN: no files were copied, moved or modified.\n")
     print(plan.summary())
     if args.plan is not None:
         plan.save(args.plan)
         print(f"\nPlan saved to {args.plan}")
+    if args.dry_run:
+        return EXIT_OK
+
+    if moving and not args.yes and not _confirm_move(len({i.source for i in plan.items})):
+        print("Cancelled. Nothing was changed.")
+        return EXIT_OK
+
+    print()
+    try:
+        with tqdm(total=len(plan.items), unit="file", disable=args.quiet or None) as bar:
+            applied = apply_plan(
+                plan,
+                confirm_move=moving,
+                progress=lambda done, total: bar.update(done - bar.n),
+            )
+    except OrganizerError as exc:
+        return _error(f"{exc}. Nothing was changed.")
+    except KeyboardInterrupt:
+        print("\nInterrupted. Use 'face-sorter undo' with the manifest in the output folder.")
+        return EXIT_INTERRUPTED
+    print(applied.summary())
+    print(f'Undo with: face-sorter undo "{applied.manifest_path}"')
     return EXIT_OK
+
+
+def _confirm_move(n_sources: int) -> bool:
+    """Ask before moving originals (golden rule). Default answer is No."""
+    prompt = (
+        f"\nMOVE mode: {n_sources} original photo(s) will be moved out of the source folder.\n"
+        "They can be restored with 'face-sorter undo'. Continue? [s/N] "
+    )
+    try:
+        answer = input(prompt)
+    except EOFError:
+        return False
+    return answer.strip().lower() in {"s", "si", "sí", "y", "yes"}
 
 
 def _cmd_gui(args: argparse.Namespace) -> int:
@@ -85,7 +123,16 @@ def _cmd_gui(args: argparse.Namespace) -> int:
 
 
 def _cmd_undo(args: argparse.Namespace) -> int:
-    return _not_implemented("'undo'", 3)
+    from face_sorter.services.organizer import OrganizerError, undo
+
+    try:
+        report = undo(args.manifest, dry_run=args.dry_run)
+    except OrganizerError as exc:
+        return _error(str(exc))
+    if args.dry_run:
+        print("DRY RUN: nothing was changed.")
+    print(report.summary())
+    return EXIT_ERROR if report.errors else EXIT_OK
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -119,6 +166,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Clustering distance threshold (lower = stricter). Default from settings.",
     )
     scan.add_argument("--cache", type=Path, help="SQLite cache file (default: user cache dir).")
+    scan.add_argument(
+        "--yes", action="store_true", help="Do not ask for confirmation (needed for --mode move)."
+    )
     scan.add_argument("-q", "--quiet", action="store_true", help="Hide the progress bar.")
     scan.set_defaults(func=_cmd_scan)
 

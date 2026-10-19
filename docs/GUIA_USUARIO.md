@@ -21,7 +21,17 @@ Muestra cuántas fotos y rostros irían a cada carpeta. Opciones útiles:
 - `--threshold 0.5`: umbral de agrupación (por defecto 0,55; más bajo = más estricto).
 - `-q`: sin barra de progreso · `-v`: más detalle en el registro.
 
-Si interrumpes el escaneo (Ctrl+C), lo ya analizado queda guardado y el siguiente escaneo continúa desde ahí. Aplicar el plan (copiar de verdad) llegará en una próxima versión.
+Si interrumpes el escaneo (Ctrl+C), lo ya analizado queda guardado y el siguiente escaneo continúa desde ahí.
+
+Aplicar (copiar de verdad): el mismo comando sin `--dry-run`.
+```
+face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas"
+```
+- `--mode copy` (por defecto): copia; los originales no se tocan.
+- `--mode hardlink`: no ocupa espacio extra, pero la "copia" es el mismo archivo que el original: si editas una, cambias la otra. Si la salida está en otro disco, se copia en su lugar y se avisa.
+- `--mode move`: mueve los originales. Pide confirmación (`s/N`); `--yes` la omite. Un original solo se retira cuando todas sus copias están verificadas.
+
+Nunca se sobrescribe nada: si en la salida ya existe un archivo idéntico se omite, y si existe otro distinto con el mismo nombre se guarda como `foto (2).jpg`. Cada copia se verifica con su huella SHA-256.
 
 ## Carpetas especiales
 - `_sin_rostro/`: fotos sin ningún rostro detectado.
@@ -40,7 +50,10 @@ Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen lista
 5. Para liberar espacio, puedes enviarlas a la **papelera del sistema**. Esto pide confirmación explícita y se puede recuperar desde la papelera.
 
 ## Deshacer
-`face-sorter undo <manifest.json>` revierte lo aplicado. También disponible en la GUI.
+`face-sorter undo <salida>\manifest_<fecha>.json` revierte lo aplicado (prueba antes con `--dry-run`). También estará disponible en la GUI.
+- Devuelve a su sitio los originales movidos.
+- Borra solo los archivos que creó la aplicación y que no modificaste después; los modificados se conservan y se listan.
+- Quita las carpetas que creó si quedaron vacías. El manifiesto se conserva como registro.
 
 ## Consejos
 - Si mezcla personas distintas: baja el umbral de agrupación en Ajustes.
