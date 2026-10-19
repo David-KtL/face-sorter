@@ -33,6 +33,7 @@ manifest_*.json
 
 # Modelos (se descargan con scripts/download_models.py)
 models/*.onnx
+models/*.part
 
 # Logs
 *.log
