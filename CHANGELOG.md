@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+### Added
+- GUI (`face-sorter gui`): elegir carpetas y modo; escaneo en segundo plano con barra de progreso y botón Cancelar; revisión de grupos con miniaturas de rostros (renombrar, unir, separar en grupo nuevo, mover a otro grupo, excluir rostro o foto, restaurar); vista previa; aplicar (pide confirmación para mover); deshacer la última operación o cualquier manifiesto (menú Archivo).
+- `services/review.py`: lógica de revisión sin Qt. Nombres de carpeta saneados (caracteres no válidos, nombres reservados de Windows) y sin duplicados.
+- `build_plan` admite nombres de grupo, rostros y fotos excluidos; el resumen cuenta las fotos excluidas.
+- Textos de la interfaz en español en `gui/strings.py`.
+- Tests de GUI con `pytest-qt` (sin pantalla). ADR 0008.
+
 ## [0.3.0] - 2026-10-19
 ### Added
 - `services/organizer.py`: aplica el plan en modo copiar (por defecto), hardlink o mover. Nunca sobrescribe (si el destino es idéntico lo omite, si no usa `foto (2).jpg`), verifica cada copia por SHA-256, comprueba espacio libre y rutas antes de empezar, y cambia hardlink por copia si el destino está en otra unidad.

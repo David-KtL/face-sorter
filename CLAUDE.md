@@ -26,8 +26,8 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 ```
 src/face_sorter/
   core/      scanner, image_io, detector, embedder, quality, clustering, cache, hashing (sha256, dHash, Hamming)
-  services/  pipeline, plan (qué va a dónde), organizer (copiar/enlazar/mover + manifiesto + undo), dedupe (grupos de duplicados, copia a conservar)
-  gui/       main_window, vistas, workers (QThread), widgets
+  services/  pipeline, plan (qué va a dónde), review (ediciones del usuario, sin Qt), organizer (copiar/enlazar/mover + manifiesto + undo), dedupe (grupos de duplicados, copia a conservar)
+  gui/       main_window, workers (QThread), thumbnails (QThreadPool), strings (textos ES), app
   config.py  __main__.py (CLI)
 tests/  docs/  docs/adr/  scripts/  models/  .claude/
 ```
@@ -55,7 +55,7 @@ ruff check . && black --check . && mypy src
 - Versionado **SemVer** con tags anotados al cerrar cada fase (ver `docs/PROGRESO.md`).
 - Decisión técnica relevante → nuevo ADR en `docs/adr/` (usar `0000-plantilla.md`).
 - No hardcodear rutas absolutas ni umbrales: todo en `config.py` / ajustes.
-- Tareas pesadas SIEMPRE fuera del hilo de la GUI.
+- Tareas pesadas SIEMPRE fuera del hilo de la GUI. Las señales de workers se conectan a **métodos** de la ventana, nunca a `lambda` (en PySide6 la lambda corre en el hilo del worker; ver ADR 0008). Textos de la GUI en `gui/strings.py`; diálogos vía `Dialogs` (sustituible en tests).
 - Tests: nunca commitear fotos reales de personas. Usar fixtures sintéticos o un dataset público descargado por script (ignorado en git).
 
 ## Flujo de trabajo

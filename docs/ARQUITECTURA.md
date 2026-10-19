@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | `core/` | Lógica pura: escanear, detectar, calidad, embeddings, clustering, caché, hashing | Depender de la GUI |
 | `services/` | Orquesta el pipeline y la organización de archivos (copiar/enlazar/mover, manifiesto, undo) | Contener lógica de UI |
-| `gui/` | Vistas PySide6 y workers (QThread) | Hacer trabajo pesado en el hilo principal |
+| `gui/` | Vistas PySide6, workers (QThread) y miniaturas (QThreadPool) | Hacer trabajo pesado en el hilo principal; contener lógica de revisión (va en `services/review.py`) |
 | `config.py` | Rutas, nombres de modelos, extensiones soportadas, modo de salida por defecto y (en cada fase) umbrales | Contener lógica |
 | `__main__.py` | CLI (`scan`, `dedupe`, `gui`, `undo`) | Duplicar lógica de `services/` |
 
@@ -44,6 +44,8 @@ flowchart LR
 - `services/dedupe.py` (Fase 5): agrupa duplicados exactos (mismo SHA-256) y casi duplicados (Hamming ≤ umbral configurable); elige la copia a conservar con la regla de RF-18; verifica el invariante RF-19 (≥ 1 copia por grupo) antes de actuar; genera un plan de movimientos a `_duplicados/` que ejecuta el `organizer` (manifiesto + `undo`). Papelera (`send2trash`) solo con confirmación explícita.
   - **Búsqueda eficiente de casi duplicados** (nada de O(n²) en Python puro): los hashes van en un array `uint64`. Se usa *bucketing* por bandas: el hash de 64 bits se parte en `t + 1` bandas (t = umbral); por el principio del palomar, dos hashes a distancia ≤ t coinciden en al menos una banda. Solo se comparan los candidatos que comparten banda, con XOR + `bitwise_count` vectorizado. Para colecciones pequeñas basta la comparación vectorizada por bloques.
   - Los duplicados exactos se agrupan antes (por SHA-256) y solo un representante de cada grupo entra en la búsqueda perceptual.
+- `services/review.py`: `ReviewSession` sobre un `ScanResult`: renombrar (saneando el nombre), unir, separar, mover, excluir y restaurar; genera el plan con nombres y exclusiones.
+- `gui/main_window.py`: páginas Inicio → Revisión → Resultado. `gui/workers.py`: `ScanWorker`, `ApplyWorker`, `UndoWorker` (QThread, cancelables). `gui/thumbnails.py`: recortes de rostro en un pool de hilos. Detalle de hilos en ADR 0008.
 - `services/organizer.py`: aplica el plan (`apply_plan`) y lo revierte (`undo`). Creación exclusiva (nunca sobrescribe), verificación SHA-256, comprobación previa de espacio y rutas, hardlink → copia si no es posible, mover en dos fases con confirmación. `manifest_<fecha>.json` en la salida: entradas (`created` / `skipped_identical` / `failed`, método `copy`/`link`, hash), originales retirados (`pending` / `done` / `kept`) y carpetas creadas. Detalle en ADR 0007.
 
 ## Modelo de datos (SQLite)

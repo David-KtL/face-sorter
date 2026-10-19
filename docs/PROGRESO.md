@@ -1,6 +1,6 @@
 # Progreso
 
-**Fase actual:** 4 (pendiente de iniciar; Fase 3 cerrada en v0.3.0)
+**Fase actual:** 5 (pendiente de iniciar; Fase 4 cerrada en v0.4.0)
 
 | Fase | Entregable | Aceptación | Estado | Tag | Fecha |
 |---|---|---|---|---|---|
@@ -8,7 +8,7 @@
 | 1 | Core: scanner, detector, calidad, embedder, caché | Detecta y calcula embeddings en dataset de prueba; cobertura core ≥ 80 % | Completada | v0.1.0 | 2026-10-19 |
 | 2 | Clustering + pipeline + CLI `scan --dry-run` | Agrupa dataset etiquetado con pureza ≥ 95 % | Completada | v0.2.0 | 2026-10-19 |
 | 3 | Organizer: copiar/enlazar/mover, manifiesto, `undo` | Originales intactos (hash); undo restaura | Completada | v0.3.0 | 2026-10-19 |
-| 4 | GUI: escaneo con progreso, revisión de grupos, aplicar | Flujo completo sin congelarse | Pendiente | v0.4.0 | |
+| 4 | GUI: escaneo con progreso, revisión de grupos, aplicar | Flujo completo sin congelarse | Completada | v0.4.0 | 2026-10-19 |
 | 5 | Duplicados: hashing exacto (SHA-256) + perceptual (dHash), servicio `dedupe`, CLI `dedupe`, pestaña GUI "Duplicados" con comparación lado a lado | Detecta el 100 % de duplicados exactos y los casi duplicados de un dataset sintético (redimensionado/recomprimido); nunca elimina todas las copias de un grupo; `undo` restaura; originales intactos por defecto | Pendiente | v0.5.0 | |
 | 6 | Ajustes, reporte CSV, manejo de errores, empaquetado opcional, docs finales | Todo RF cumplido | Pendiente | v1.0.0 | |
 
@@ -23,3 +23,4 @@
 | 2026-10-19 | Fase 2: `clustering` (umbral 0,55 calibrado, ADR 0005), `pipeline` con caché, progreso y cancelación, `plan` (reglas de colocación, nombres sin colisión, JSON), CLI `scan --dry-run --plan`. LFW: pureza 99,9 %, 99,2 % de rostros agrupados; 77 tests, cobertura 99 % | Fase 3: organizer (copiar/enlazar/mover, manifiesto, `undo`) |
 | 2026-10-19 | Nueva Fase 5 "Duplicados" en requisitos (RF-16 a RF-20), arquitectura, ADR 0006 y guías; la antigua Fase 5 pasa a Fase 6. Corregida la tabla de fases (tenía filas del registro mezcladas) | Fase 3: organizer |
 | 2026-10-19 | Fase 3: `organizer` (copias exclusivas verificadas por SHA-256, nunca sobrescribe, hardlink con respaldo a copia, mover en dos fases con confirmación, manifiesto incremental y atómico, `undo` que solo borra lo intacto creado por la app; ADR 0007), CLI `scan` aplica y `undo [--dry-run]`. 104 tests, cobertura 97 %; originales verificados por hash en todos los modos | Fase 4: GUI |
+| 2026-10-19 | Fase 4: GUI PySide6 (escaneo en `QThread` con progreso y cancelar, revisión: renombrar/unir/separar/mover/excluir/restaurar con miniaturas en `QThreadPool`, vista previa, aplicar con confirmación de mover, deshacer), `services/review.py`, nombres de carpeta saneados (ADR 0008). Corregidos dos interbloqueos de hilos (lambdas en señales de workers y `quit` encolado). 134 tests (12 de GUI con pytest-qt), cobertura 94 % | Fase 5: duplicados |
