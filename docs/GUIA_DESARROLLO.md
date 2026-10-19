@@ -6,8 +6,10 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows  (Linux/macOS: source .venv/bin/activate)
 pip install -r requirements-dev.txt
 pip install -e .
-python scripts/download_models.py
+python scripts/download_models.py   # verifica el SHA-256 de cada modelo
 ```
+
+Para actualizar dependencias: cambia los rangos en `pyproject.toml`, reinstala en un `.venv` limpio y regenera `requirements.txt` (solo runtime) y `requirements-dev.txt` con `pip freeze`.
 
 ## Calidad (antes de cada commit)
 ```

@@ -20,6 +20,7 @@ flowchart LR
 | `core/` | Lógica pura: escanear, detectar, calidad, embeddings, clustering, caché | Depender de la GUI |
 | `services/` | Orquesta el pipeline y la organización de archivos (copiar/enlazar/mover, manifiesto, undo) | Contener lógica de UI |
 | `gui/` | Vistas PySide6 y workers (QThread) | Hacer trabajo pesado en el hilo principal |
+| `config.py` | Rutas, nombres de modelos, extensiones soportadas, modo de salida por defecto y (en cada fase) umbrales | Contener lógica |
 | `__main__.py` | CLI (`scan`, `gui`, `undo`) | Duplicar lógica de `services/` |
 
 ## Módulos clave
