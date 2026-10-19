@@ -16,6 +16,7 @@ from typing import Any
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 
 from face_sorter.config import Settings
+from face_sorter.gui.errors import friendly_message
 from face_sorter.services.dedupe import DedupeResult, DedupeScanner, trash_duplicates
 from face_sorter.services.organizer import apply_plan, undo
 from face_sorter.services.pipeline import Pipeline, ScanCancelled
@@ -60,9 +61,9 @@ class Worker(QObject):
             result = self.work()
         except ScanCancelled:
             self.cancelled.emit()
-        except Exception as exc:  # noqa: BLE001 - reported to the user, never crash the GUI
+        except (Exception, MemoryError) as exc:  # noqa: BLE001 - reported, never crash the GUI
             log.exception("Background task failed")
-            self.failed.emit(str(exc))
+            self.failed.emit(friendly_message(exc))
         else:
             if self.is_cancelled and result is None:
                 self.cancelled.emit()

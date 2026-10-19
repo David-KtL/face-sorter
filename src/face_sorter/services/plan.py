@@ -25,6 +25,7 @@ from face_sorter import __version__
 from face_sorter.config import (
     LOW_QUALITY_FOLDER,
     NO_FACE_FOLDER,
+    OUTPUT_MODE_LABELS,
     PERSON_FOLDER_TEMPLATE,
     UNCLASSIFIED_FOLDER,
     OutputMode,
@@ -112,19 +113,19 @@ class OrganizationPlan:
         total = len({i.source for i in self.items}) + len(self.errors) + len(self.excluded_images)
         persons = [g for g in self.groups if g.kind is GroupKind.PERSON]
         lines = [
-            f"Source: {self.source_root}",
-            f"Output: {self.output_root}  (mode: {self.mode.value})",
-            f"Images: {total} | person groups: {len(persons)} | "
-            f"copies planned: {len(self.items)} | errors: {len(self.errors)}"
-            + (f" | excluded: {len(self.excluded_images)}" if self.excluded_images else ""),
+            f"Origen: {self.source_root}",
+            f"Salida: {self.output_root}  (modo: {OUTPUT_MODE_LABELS[self.mode]})",
+            f"Fotos: {total} | grupos de personas: {len(persons)} | "
+            f"copias previstas: {len(self.items)} | ilegibles: {len(self.errors)}"
+            + (f" | excluidas: {len(self.excluded_images)}" if self.excluded_images else ""),
             "",
-            f"{'Folder':<20} {'Images':>7} {'Faces':>7}",
+            f"{'Carpeta':<20} {'Fotos':>7} {'Rostros':>7}",
             f"{'-' * 20} {'-' * 7} {'-' * 7}",
         ]
         for g in self.groups:
             lines.append(f"{g.folder:<20} {len(g.images):>7} {g.n_faces:>7}")
         if self.errors:
-            lines += ["", "Unreadable images (not copied):"]
+            lines += ["", "Fotos ilegibles (no se copian):"]
             lines += [f"  {e.source}: {e.error}" for e in self.errors]
         return "\n".join(lines)
 
@@ -234,7 +235,7 @@ def build_plan(
 
     for img in result.images:
         if img.status is ImageStatus.ERROR:
-            errors.append(PlanError(img.path, img.error or "unknown error"))
+            errors.append(PlanError(img.path, img.error or "error desconocido"))
             continue
         if img.path in excluded_i:
             skipped.append(img.path)

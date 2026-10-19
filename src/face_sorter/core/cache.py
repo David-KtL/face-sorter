@@ -121,6 +121,24 @@ class CachedFace:
         return FaceMetrics(self.face.min_side, self.face.score, self.sharpness)
 
 
+def delete_cache_files(db_path: Path) -> list[Path]:
+    """Delete the cache database and its SQLite side files (privacy).
+
+    Deleting the file (instead of DELETE + VACUUM) guarantees nothing is left on disk.
+    The cache must not be open. Returns the files that were deleted.
+    """
+    db_path = Path(db_path)
+    deleted = []
+    for path in (
+        db_path,
+        *(db_path.with_name(db_path.name + s) for s in ("-wal", "-shm", "-journal")),
+    ):
+        if path.exists():
+            path.unlink()
+            deleted.append(path)
+    return deleted
+
+
 def path_key(path: Path) -> str:
     """Normalized absolute path used as the cache key (case-insensitive on Windows)."""
     return os.path.normcase(str(Path(path).resolve()))

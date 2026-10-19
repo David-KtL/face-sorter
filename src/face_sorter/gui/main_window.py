@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt, QThread, QUrl
@@ -9,6 +10,7 @@ from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QIcon, QImage,
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -28,10 +30,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from face_sorter.config import DUPLICATES_FOLDER, OutputMode, Settings
+from face_sorter.config import (
+    DUPLICATES_FOLDER,
+    OutputMode,
+    Settings,
+    load_settings,
+    save_settings,
+)
+from face_sorter.core.cache import delete_cache_files
 from face_sorter.core.clustering import UNCLASSIFIED
 from face_sorter.gui import strings as S
 from face_sorter.gui.duplicates_page import DuplicatesPage
+from face_sorter.gui.settings_dialog import SettingsDialog
 from face_sorter.gui.thumbnails import THUMB_SIZE, ThumbnailLoader
 from face_sorter.gui.workers import (
     ApplyWorker,
@@ -52,6 +62,7 @@ from face_sorter.services.dedupe import (
 from face_sorter.services.organizer import ApplyResult, UndoReport
 from face_sorter.services.pipeline import FaceInfo, Pipeline, ScanResult
 from face_sorter.services.plan import FaceKey, OrganizationPlan
+from face_sorter.services.report import write_csv
 from face_sorter.services.review import ReviewError, ReviewSession, face_key
 
 ROLE = Qt.ItemDataRole.UserRole
@@ -102,6 +113,16 @@ class Dialogs:
     def open_file(self, title: str, start: str, filters: str) -> str | None:
         return QFileDialog.getOpenFileName(self.parent, title, start, filters)[0] or None
 
+    def save_file(self, title: str, start: str, filters: str) -> str | None:
+        return QFileDialog.getSaveFileName(self.parent, title, start, filters)[0] or None
+
+    def settings(self, current: Settings, on_delete_data: Callable[[], None]) -> Settings | None:
+        dialog = SettingsDialog(current, self.parent)
+        dialog.delete_data_button.clicked.connect(on_delete_data)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            return dialog.settings()
+        return None
+
     def show_text(self, title: str, text: str) -> None:
         box = QMessageBox(self.parent)
         box.setWindowTitle(title)
@@ -120,7 +141,7 @@ class MainWindow(QMainWindow):
         pipeline_factory: PipelineFactory = Pipeline,
     ) -> None:
         super().__init__()
-        self.settings = settings or Settings()
+        self.settings = settings or load_settings()
         self.pipeline_factory = pipeline_factory
         self.dialogs = Dialogs(self)
         self.session: ReviewSession | None = None
@@ -142,6 +163,7 @@ class MainWindow(QMainWindow):
         self._build_result_page()
         self._build_duplicates_page()
         self._build_menu()
+        self.mode_combo.setCurrentIndex(self.mode_combo.findData(self.settings.output_mode))
         self.pages.setCurrentWidget(self.setup_page)
 
     # =================================================================== building UI
@@ -151,6 +173,9 @@ class MainWindow(QMainWindow):
         undo_action = QAction(S.MENU_UNDO_MANIFEST, self)
         undo_action.triggered.connect(self.undo_from_file)
         menu.addAction(undo_action)
+        settings_action = QAction(S.MENU_SETTINGS, self)
+        settings_action.triggered.connect(self.open_settings)
+        menu.addAction(settings_action)
         quit_action = QAction(S.MENU_QUIT, self)
         quit_action.triggered.connect(self.close)
         menu.addAction(quit_action)
@@ -278,8 +303,11 @@ class MainWindow(QMainWindow):
         self.preview_button.clicked.connect(self.preview)
         self.apply_button = QPushButton(S.APPLY)
         self.apply_button.clicked.connect(self.start_apply)
+        self.csv_button = QPushButton(S.EXPORT_CSV)
+        self.csv_button.clicked.connect(self.export_csv)
         bottom.addWidget(back)
         bottom.addStretch()
+        bottom.addWidget(self.csv_button)
         bottom.addWidget(self.preview_button)
         bottom.addWidget(self.apply_button)
         layout.addLayout(bottom)
@@ -649,6 +677,53 @@ class MainWindow(QMainWindow):
             self.dialogs.error(S.EDIT_ERROR, str(exc))
             return
         self.dialogs.show_text(S.PREVIEW_TITLE, plan.summary())
+
+    def export_csv(self) -> None:
+        """Save the CSV report of the current plan (RF-15)."""
+        if self.session is None:
+            return
+        start = str(Path(self.output_edit.text().strip() or ".") / "reporte.csv")
+        chosen = self.dialogs.save_file(S.EXPORT_CSV_TITLE, start, S.CSV_FILTER)
+        if not chosen:
+            return
+        try:
+            n = write_csv(self.current_plan(), Path(chosen))
+        except (OSError, ValueError) as exc:
+            self.dialogs.error(S.EDIT_ERROR, str(exc))
+            return
+        self.dialogs.info(S.EXPORT_CSV_TITLE, S.CSV_SAVED.format(n=n, path=chosen))
+
+    # =================================================================== settings
+
+    def open_settings(self) -> None:
+        """Edit and save the user settings (RF-14)."""
+        if self.busy:
+            self.dialogs.info(S.SETTINGS_TITLE, S.BUSY)
+            return
+        new = self.dialogs.settings(self.settings, self.delete_local_data)
+        if new is None:
+            return
+        self.settings = new
+        save_settings(new)
+        self.mode_combo.setCurrentIndex(self.mode_combo.findData(new.output_mode))
+        self.dialogs.info(S.SETTINGS_TITLE, S.SET_SAVED)
+
+    def delete_local_data(self) -> None:
+        """Delete the local cache database (faces, embeddings, hashes)."""
+        if self.busy:
+            self.dialogs.error(S.SETTINGS_TITLE, S.BUSY)
+            return
+        path = self.settings.cache_path
+        if not self.dialogs.ask(
+            S.CONFIRM_DELETE_DATA_TITLE, S.CONFIRM_DELETE_DATA.format(path=path)
+        ):
+            return
+        try:
+            delete_cache_files(path)
+        except OSError as exc:
+            self.dialogs.error(S.SETTINGS_TITLE, str(exc))
+            return
+        self.dialogs.info(S.SETTINGS_TITLE, S.DATA_DELETED)
 
     # ====================================================================== apply
 

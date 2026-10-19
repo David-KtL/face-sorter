@@ -19,11 +19,11 @@ Agrupar por persona las fotos de una carpeta y organizarlas en subcarpetas, y de
 | RF-11 | Modo `--dry-run` que muestra qué se haría sin tocar archivos | Alta |
 | RF-12 | Manifiesto de operaciones y comando `undo` para revertir | Alta |
 | RF-13 | CLI: `scan`, `gui`, `undo` | Media |
-| RF-14 | Ajustes: umbral de agrupación, calidad mínima, modo de salida, idioma | Media |
+| RF-14 | Ajustes: umbral de agrupación, calidad mínima, modo de salida, idioma (decisión 2026-10-19: la aplicación es solo en español) | Media |
 | RF-15 | Exportar un reporte CSV (foto, grupo, n.º de rostros) | Baja |
 | RF-16 | Detectar duplicados exactos por SHA-256 | Alta |
 | RF-17 | Detectar casi duplicados (redimensionadas, recomprimidas, otro formato) con hash perceptual dHash (Pillow + numpy, sin dependencias nuevas) y distancia de Hamming configurable | Alta |
-| RF-18 | Elegir la copia a conservar por regla configurable (mayor resolución > mayor tamaño > fecha EXIF más antigua > ruta más corta), modificable por el usuario en la GUI | Alta |
+| RF-18 | Elegir la copia a conservar por regla configurable (mayor resolución > fecha EXIF más antigua > mayor tamaño > ruta más corta), modificable por el usuario en la GUI | Alta |
 | RF-19 | Invariante: siempre queda al menos una copia por grupo de duplicados, verificada antes de actuar | Alta |
 | RF-20 | Acción por defecto sobre duplicados: mover a `_duplicados/` con manifiesto y `undo`; `--dry-run` siempre disponible; aplicar pide confirmación (s/N o `--yes`); enviar a la papelera solo con confirmación explícita | Alta |
 

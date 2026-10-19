@@ -98,7 +98,7 @@ def test_copy_creates_verified_copies_and_keeps_originals(
     assert result.manifest_path.name.startswith("manifest_")
     saved = Manifest.load(result.manifest_path)
     assert [e.dest for e in saved.entries] == [e.dest for e in result.manifest.entries]
-    assert "Created: 5" in result.summary()
+    assert "Creados: 5" in result.summary()
 
 
 def test_undo_restores_previous_state(
@@ -109,7 +109,7 @@ def test_undo_restores_previous_state(
     result = apply_plan(plan)
 
     preview = undo(result.manifest_path, dry_run=True)
-    assert len(preview.deleted) == 5 and "Would" in preview.summary()
+    assert len(preview.deleted) == 5 and "restaurarían" in preview.summary()
     assert len(snapshot(plan.output_root)) == 5  # dry-run changed nothing
 
     report = undo(result.manifest_path)
@@ -166,7 +166,7 @@ def test_undo_keeps_files_modified_after_the_run(
     report = undo(result.manifest_path)
     assert report.kept_modified == [str(edited)]
     assert edited.read_bytes() == b"edited by the user"
-    assert "modified" in report.summary()
+    assert "modificados" in report.summary()
 
 
 def test_undo_reports_files_already_gone(
@@ -187,7 +187,7 @@ def test_missing_source_fails_only_that_item(
     result = apply_plan(plan)
     assert result.count(EntryResult.FAILED) == 1
     assert result.count(EntryResult.CREATED) == 4
-    assert "FAILED" in result.summary()
+    assert "FALLÓ" in result.summary()
 
 
 # -- preflight ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ def test_output_equal_to_source_is_refused(
     src: Path, make_plan: Callable[..., OrganizationPlan]
 ) -> None:
     before = snapshot(src)
-    with pytest.raises(OrganizerError, match="different"):
+    with pytest.raises(OrganizerError, match="distinta"):
         apply_plan(make_plan(out=src))
     assert snapshot(src) == before
 
@@ -207,7 +207,7 @@ def test_destination_escaping_output_is_refused(
 ) -> None:
     plan = make_plan()
     plan.items.append(PlanItem(src / "a.jpg", PurePosixPath("../evil.jpg"), "x"))
-    with pytest.raises(OrganizerError, match="outside"):
+    with pytest.raises(OrganizerError, match="fuera"):
         apply_plan(plan)
     assert not plan.output_root.exists()
     assert not (tmp_path / "evil.jpg").exists()
@@ -218,7 +218,7 @@ def test_not_enough_space_is_refused(
 ) -> None:
     monkeypatch.setattr(org.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
     plan = make_plan()
-    with pytest.raises(OrganizerError, match="free space"):
+    with pytest.raises(OrganizerError, match="espacio suficiente"):
         apply_plan(plan)
     assert not plan.output_root.exists()
 
@@ -277,7 +277,7 @@ def test_hardlink_falls_back_to_copy_on_another_drive(
     result = apply_plan(make_plan(OutputMode.HARDLINK))
     assert result.count(EntryResult.CREATED) == 5
     assert result.fallbacks == 5
-    assert "copied instead" in result.summary()
+    assert "se copiaron" in result.summary()
 
 
 # -- move ----------------------------------------------------------------------------------
@@ -285,7 +285,7 @@ def test_hardlink_falls_back_to_copy_on_another_drive(
 
 def test_move_requires_confirmation(make_plan: Callable[..., OrganizationPlan]) -> None:
     plan = make_plan(OutputMode.MOVE)
-    with pytest.raises(OrganizerError, match="confirmation"):
+    with pytest.raises(OrganizerError, match="confirmación"):
         apply_plan(plan)
     assert not plan.output_root.exists()
 
@@ -309,7 +309,7 @@ def test_move_and_undo(
     out = snapshot(plan.output_root)
     assert out["Persona_001/group.jpg"] == out["Persona_002/group.jpg"] == before["group.jpg"]
     assert all(r.state is RemovalState.DONE for r in result.manifest.removals)
-    assert "Originals moved: 4" in result.summary()
+    assert "Originales movidos: 4" in result.summary()
 
     report = undo(result.manifest_path)
     assert sorted(report.restored) == sorted(str(src / p) for p in before)
@@ -385,7 +385,7 @@ def test_undo_cannot_restore_without_intact_copy(
     result = apply_plan(plan, confirm_move=True)
     (plan.output_root / "_sin_clasificar" / "b.jpg").write_bytes(b"tampered")
     report = undo(result.manifest_path)
-    assert report.errors and "no intact copy" in report.errors[0]
+    assert report.errors and "ninguna copia intacta" in report.errors[0]
 
 
 # -- manifest ------------------------------------------------------------------------------
@@ -394,10 +394,10 @@ def test_undo_cannot_restore_without_intact_copy(
 def test_manifest_errors(tmp_path: Path) -> None:
     bad = tmp_path / "manifest_bad.json"
     bad.write_text("{not json", encoding="utf-8")
-    with pytest.raises(OrganizerError, match="Cannot read"):
+    with pytest.raises(OrganizerError, match="No se puede leer"):
         undo(bad)
     bad.write_text(json.dumps({"format_version": 99}), encoding="utf-8")
-    with pytest.raises(OrganizerError, match="Unsupported"):
+    with pytest.raises(OrganizerError, match="no soportada"):
         undo(bad)
 
 
@@ -429,5 +429,5 @@ def test_corrupted_copy_is_detected_and_removed(
     plan = make_plan()
     result = apply_plan(plan)
     assert result.count(EntryResult.FAILED) == 5
-    assert all("Verification failed" in (e.error or "") for e in result.manifest.entries)
+    assert all("La verificación falló" in (e.error or "") for e in result.manifest.entries)
     assert snapshot(plan.output_root) == {}
