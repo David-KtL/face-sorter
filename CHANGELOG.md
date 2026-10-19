@@ -3,7 +3,20 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-10-19
+### Added
+- Ajustes persistentes (RF-14): umbral de agrupación, mínimo de rostros por grupo, calidad mínima (tamaño, confianza, nitidez), sensibilidad de casi duplicados y modo por defecto. Se guardan en un JSON de usuario con validación de rangos; un archivo dañado nunca impide arrancar. La CLI y la GUI los usan.
+- GUI: diálogo **Archivo → Ajustes…** con «Restaurar valores por defecto» y «Borrar datos locales…» (elimina el archivo de caché por completo).
+- Reporte CSV (RF-15): `face-sorter scan … --csv reporte.csv` y botón «Exportar CSV…» en la revisión. Separador `;` y UTF-8 con BOM para Excel en español.
+- Registro en archivo rotativo (carpeta de logs del usuario) y capturador global de errores en la GUI.
+- Mensajes claros para permisos denegados, disco lleno y memoria insuficiente.
+- Variable `FACE_SORTER_HOME` para guardar ajustes, caché y logs en una carpeta concreta (instalación portátil y tests aislados).
+- `docs/VERIFICACION.md`: estado de cada requisito y su evidencia.
+
 ### Changed
+- Todos los textos para el usuario (CLI, resúmenes, errores) están en español, incluidas las frases de ayuda de argparse.
+- `--mode` toma por defecto el modo de los ajustes del usuario.
 - Regla de la copia a conservar entre duplicados: mayor resolución > **fecha EXIF más antigua** > mayor tamaño > ruta más corta. Una conversión más pesada (p. ej. a PNG) ya no gana a su JPEG original.
 
 ## [0.5.0] - 2026-10-19

@@ -74,10 +74,31 @@ Qué copia se conserva por defecto: la de **mayor resolución**; si empatan, la 
 - Borra solo los archivos que creó la aplicación y que no modificaste después; los modificados se conservan y se listan.
 - Quita las carpetas que creó si quedaron vacías. El manifiesto se conserva como registro.
 
+## Ajustes
+Menú **Archivo → Ajustes…** Pasa el ratón por cada campo para ver qué hace.
+- **Umbral de agrupación** (0,55): más bajo = más estricto.
+- **Mínimo de rostros por grupo** (2): los grupos más pequeños van a `_sin_clasificar`.
+- **Tamaño mínimo de rostro, confianza mínima y nitidez mínima**: lo que no llegue va a `_baja_calidad`.
+- **Sensibilidad de casi duplicados** (6): menos = más estricto.
+- **Modo por defecto**: Copiar, Enlace duro o Mover. La línea de comandos también lo usa.
+
+Los cambios se aplican en el próximo escaneo, que será rápido porque lo ya analizado está en la caché. **Restaurar valores por defecto** vuelve a los recomendados.
+
+## Reporte CSV
+En la revisión, **Exportar CSV…** guarda un archivo con una fila por foto y carpeta: `foto; grupo; destino; n_rostros; estado`. Se abre directamente en Excel. En la línea de comandos: `--csv reporte.csv`.
+
+## Cuánto tarda
+La primera vez se analiza cada foto: unos 0,3-0,6 segundos por foto de móvil, así que **5 000 fotos ≈ 30-50 minutos**. Puedes cancelar y seguir otro día. Las siguientes veces solo se analizan las fotos nuevas o cambiadas y el resto tarda segundos.
+
+## Si algo falla
+- Faltan los modelos: ejecuta `python scripts/download_models.py`.
+- Hay un registro con detalles en la carpeta de logs del usuario (en Windows, `%LOCALAPPDATA%\face-sorter\Logs\face-sorter.log`).
+- Una foto dañada no detiene nada: aparece en el resumen como ilegible.
+
 ## Consejos
 - Si mezcla personas distintas: baja el umbral de agrupación en Ajustes.
 - Si divide a la misma persona en varios grupos: sube el umbral y usa **Unir**.
 - Fotos con gafas de sol, perfil extremo o muy pequeñas darán peores resultados.
 
 ## Privacidad
-Todo se procesa en tu equipo. Los embeddings se guardan en una base local; bórrala desde Ajustes si ya no la necesitas.
+Todo se procesa en tu equipo; la aplicación no se conecta a internet. Los rostros y huellas calculados se guardan en una base de datos local. Bórrala desde **Ajustes → Borrar datos locales…** cuando ya no la necesites (tus fotos no se tocan).
