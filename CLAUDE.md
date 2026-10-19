@@ -22,7 +22,7 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 ## Estructura
 ```
 src/face_sorter/
-  core/      scanner, detector, embedder, quality, clustering, cache
+  core/      scanner, image_io, detector, embedder, quality, clustering, cache
   services/  pipeline, organizer (copiar/enlazar/mover + manifiesto + undo)
   gui/       main_window, vistas, workers (QThread), widgets
   config.py  __main__.py (CLI)
@@ -34,6 +34,7 @@ tests/  docs/  docs/adr/  scripts/  models/  .claude/
 python -m venv .venv && .venv\Scripts\activate     # Windows
 pip install -r requirements-dev.txt && pip install -e .
 python scripts/download_models.py                  # descarga modelos ONNX
+python scripts/download_lfw.py                     # dataset de prueba LFW en data/ (tests)
 face-sorter scan <carpeta> --out <salida> --dry-run
 face-sorter gui
 pytest -q --cov=face_sorter
