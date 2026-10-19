@@ -11,10 +11,24 @@
 5. Pulsa **Vista previa (dry-run)** para ver qué se copiará.
 6. Pulsa **Aplicar**. Por defecto se **copia**; tus originales no se tocan.
 
+## Línea de comandos
+Vista previa sin tocar ningún archivo:
+```
+face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run
+```
+Muestra cuántas fotos y rostros irían a cada carpeta. Opciones útiles:
+- `--plan plan.json`: guarda el plan completo (cada foto y su destino) para revisarlo.
+- `--threshold 0.5`: umbral de agrupación (por defecto 0,55; más bajo = más estricto).
+- `-q`: sin barra de progreso · `-v`: más detalle en el registro.
+
+Si interrumpes el escaneo (Ctrl+C), lo ya analizado queda guardado y el siguiente escaneo continúa desde ahí. Aplicar el plan (copiar de verdad) llegará en una próxima versión.
+
 ## Carpetas especiales
 - `_sin_rostro/`: fotos sin ningún rostro detectado.
 - `_baja_calidad/`: rostros demasiado pequeños o borrosos.
-- `_sin_clasificar/`: rostros que no encajan con ningún grupo.
+- `_sin_clasificar/`: rostros que no encajan con ningún grupo (por ejemplo, alguien que aparece en una sola foto). Una foto de grupo que ya va a la carpeta de alguien no se copia también aquí.
+
+Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen listadas al final del resumen.
 
 ## Deshacer
 `face-sorter undo <manifest.json>` revierte lo aplicado. También disponible en la GUI.
