@@ -1,16 +1,19 @@
 # face-sorter — Contexto del proyecto para Claude Code
 
 ## Objetivo
-Aplicación de escritorio en Python que **agrupa por persona** las fotos de una carpeta: detecta rostros, calcula embeddings, los agrupa (clustering) y organiza las imágenes en carpetas (`Persona_001/`, `Persona_002/`, ...). El usuario revisa y nombra los grupos en una GUI antes de aplicar cambios.
+Aplicación de escritorio en Python que **agrupa por persona** las fotos de una carpeta: detecta rostros, calcula embeddings, los agrupa (clustering) y organiza las imágenes en carpetas (`Persona_001/`, `Persona_002/`, ...). El usuario revisa y nombra los grupos en una GUI antes de aplicar cambios. Además detecta fotos duplicadas (exactas y casi duplicadas) y las retira de forma segura y reversible.
 
-**Alcance:** SOLO agrupación de rostros en carpetas. No agregues redes sociales, nube, análisis de emociones/edad/género, ni nada fuera de `docs/REQUISITOS.md`.
+**Alcance:** agrupación de rostros por persona + detección y retiro seguro de fotos duplicadas. No agregues redes sociales, nube, análisis de emociones/edad/género, ni nada fuera de `docs/REQUISITOS.md`.
 
 ## Regla de oro (seguridad de datos)
 **Nunca modificar, mover ni borrar las fotos originales por defecto.** El modo por defecto es COPIAR (o hardlink) a una carpeta de salida. Mover solo con confirmación explícita del usuario. Toda operación sobre archivos debe poder deshacerse mediante un manifiesto (`manifest_*.json`) y tener modo `--dry-run`.
 
+**Duplicados (`face-sorter dedupe`):** los duplicados **NUNCA se borran por defecto**. La acción por defecto es moverlos a `_duplicados/` con manifiesto y `undo`. Siempre queda al menos una copia por grupo, y se verifica antes de actuar. Borrar solo enviando a la papelera del sistema (`send2trash`) y con confirmación explícita; jamás borrado permanente.
+
 ## Stack
 - Python 3.11+ (entorno de desarrollo: 3.12), `.venv`, `pyproject.toml`; versiones exactas en `requirements*.txt`
 - Detección + embedding: OpenCV 5.x `FaceDetectorYN` (YuNet) + `FaceRecognizerSF` (SFace, embedding de 128 dims), modelos ONNX verificados por SHA-256. Embedder **intercambiable** (interfaz `Embedder`) para poder añadir InsightFace/ArcFace después.
+- Duplicados: SHA-256 (exactos) + dHash con Pillow + numpy (casi duplicados, distancia de Hamming); papelera con `send2trash`
 - Clustering: scikit-learn (`AgglomerativeClustering` con distancia coseno y umbral; `HDBSCAN` opcional)
 - Caché: SQLite (`sqlite3` de la stdlib)
 - Imágenes: Pillow (+ `pillow-heif` para HEIC), respetar orientación EXIF
@@ -22,8 +25,8 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 ## Estructura
 ```
 src/face_sorter/
-  core/      scanner, image_io, detector, embedder, quality, clustering, cache
-  services/  pipeline, plan (qué va a dónde), organizer (copiar/enlazar/mover + manifiesto + undo)
+  core/      scanner, image_io, detector, embedder, quality, clustering, cache, hashing (sha256, dHash, Hamming)
+  services/  pipeline, plan (qué va a dónde), organizer (copiar/enlazar/mover + manifiesto + undo), dedupe (grupos de duplicados, copia a conservar)
   gui/       main_window, vistas, workers (QThread), widgets
   config.py  __main__.py (CLI)
 tests/  docs/  docs/adr/  scripts/  models/  .claude/
@@ -36,6 +39,7 @@ pip install -r requirements-dev.txt && pip install -e .
 python scripts/download_models.py                  # descarga modelos ONNX
 python scripts/download_lfw.py                     # dataset de prueba LFW en data/ (tests)
 face-sorter scan <carpeta> --out <salida> --dry-run [--plan plan.json] [--threshold 0.55]
+face-sorter dedupe <carpeta> --dry-run                 # duplicados (Fase 5)
 face-sorter gui
 pytest -q --cov=face_sorter
 ruff check . && black --check . && mypy src
