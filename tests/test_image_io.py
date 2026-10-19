@@ -75,3 +75,10 @@ def test_decode_never_modifies_original(make_image: Callable[..., Path]) -> None
 def test_decode_image_bytes() -> None:
     with pytest.raises(ImageLoadError):
         decode_image(b"")
+
+
+def test_truncated_file_raises(make_image: Callable[..., Path]) -> None:
+    path = make_image("cut.jpg", size=(200, 200))
+    path.write_bytes(path.read_bytes()[:300])
+    with pytest.raises(ImageLoadError, match="cut.jpg"):
+        load_image(path)

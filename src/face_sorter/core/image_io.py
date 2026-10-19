@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pillow_heif
 from numpy.typing import NDArray
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from face_sorter.config import MAX_IMAGE_PIXELS
 
@@ -36,8 +36,10 @@ def decode_image(data: bytes) -> BGRImage:
         with Image.open(io.BytesIO(data)) as img:
             upright = ImageOps.exif_transpose(img)
             rgb = upright.convert("RGB")
+    except UnidentifiedImageError as exc:
+        raise ImageLoadError("unrecognized image format or corrupt file") from exc
     except Exception as exc:  # Pillow raises many different types for bad input.
-        raise ImageLoadError(str(exc)) from exc
+        raise ImageLoadError(f"{type(exc).__name__}: {exc}") from exc
     array = np.asarray(rgb, dtype=np.uint8)
     return np.ascontiguousarray(array[:, :, ::-1])
 
