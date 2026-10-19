@@ -1,7 +1,7 @@
 # Guía de usuario
 
 ## Flujo básico
-1. Abre la app: `face-sorter gui`.
+1. Abre la app: doble clic en **`Iniciar face-sorter.bat`** (en la carpeta del proyecto) o, en la terminal, `face-sorter gui`. La primera vez el `.bat` prepara el entorno e instala lo necesario, y descarga los modelos (necesita internet y tarda unos minutos).
 2. **Elige la carpeta de fotos** y la **carpeta de salida** (distinta de la de origen).
    Elige también el **modo**: Copiar (recomendado), Enlace duro o Mover.
 3. Pulsa **Escanear**. Verás una barra de progreso. Puedes cancelar: lo analizado se guarda y el próximo escaneo continúa desde ahí.

@@ -30,6 +30,8 @@ python scripts/download_models.py
 ```
 
 ## Uso
+En Windows, lo más fácil: doble clic en **`Iniciar face-sorter.bat`**. La primera vez instala todo y descarga los modelos; después abre la aplicación directamente.
+
 ```
 face-sorter gui
 face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run   # vista previa
