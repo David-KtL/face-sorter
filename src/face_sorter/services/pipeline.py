@@ -20,6 +20,7 @@ from face_sorter.core.cache import FaceCache, FaceRecord, ImageStatus
 from face_sorter.core.clustering import UNCLASSIFIED, cluster_embeddings
 from face_sorter.core.detector import DetectedFace, FaceDetector
 from face_sorter.core.embedder import Embedder, Embedding, SFaceEmbedder
+from face_sorter.core.hashing import compute_hashes
 from face_sorter.core.image_io import ImageLoadError, decode_image, read_bytes, sha256_bytes
 from face_sorter.core.quality import FaceMetrics, QualityReport, assess, sharpness
 from face_sorter.core.scanner import scan
@@ -84,6 +85,11 @@ class ScanResult:
         return [f for img in self.images for f in img.faces]
 
 
+def cache_fingerprint(settings: Settings, embedder_name: str = SFaceEmbedder.name) -> str:
+    """Fingerprint of the face models; opening the cache with another one empties its faces."""
+    return f"{embedder_name}|{settings.detector.fingerprint()}"
+
+
 ProgressCallback = Callable[[Progress], None]
 CancelCheck = Callable[[], bool]
 
@@ -106,7 +112,7 @@ class Pipeline:
         self._detector = detector
         self._embedder = embedder
         embedder_name = embedder.name if embedder else SFaceEmbedder.name
-        self.fingerprint = f"{embedder_name}|{self.settings.detector.fingerprint()}"
+        self.fingerprint = cache_fingerprint(self.settings, embedder_name)
         self._owns_cache = cache is None
         self.cache = cache or FaceCache(self.settings.cache_path, self.fingerprint)
 
@@ -165,6 +171,10 @@ class Pipeline:
             log.warning("Cannot read %s: %s", path, exc)
             self.cache.store_error(path, str(exc), sha)
             return ImageInfo(path, ImageStatus.ERROR, error=str(exc))
+
+        # Free by-product for duplicate detection (phase 5): the image is already decoded.
+        if self.cache.lookup_hashes(path) is None:
+            self.cache.store_hashes(path, compute_hashes(data, image))
 
         try:
             records = []

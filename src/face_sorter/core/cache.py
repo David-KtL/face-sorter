@@ -22,10 +22,13 @@ import numpy as np
 
 from face_sorter.core.detector import DetectedFace
 from face_sorter.core.embedder import Embedding
+from face_sorter.core.hashing import ImageHashes
 from face_sorter.core.image_io import sha256_file
 from face_sorter.core.quality import FaceMetrics
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
+# Versions that can be upgraded in place (new tables only, no data loss).
+_UPGRADABLE = {"1"}
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (
@@ -55,6 +58,19 @@ CREATE TABLE IF NOT EXISTS faces (
     UNIQUE (image_id, face_index)
 );
 CREATE INDEX IF NOT EXISTS idx_faces_image ON faces(image_id);
+-- v2: hashes for duplicate detection. Independent of the face models' fingerprint.
+CREATE TABLE IF NOT EXISTS image_hashes (
+    path_key TEXT PRIMARY KEY,
+    path     TEXT NOT NULL,
+    size     INTEGER NOT NULL,
+    mtime_ns INTEGER NOT NULL,
+    sha256   TEXT NOT NULL,
+    phash    INTEGER,
+    width    INTEGER,
+    height   INTEGER,
+    taken_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_hashes_sha ON image_hashes(sha256);
 """
 
 _EMBEDDING_DTYPE = np.dtype("<f4")
@@ -149,10 +165,14 @@ class FaceCache:
         return None if row is None else str(row["value"])
 
     def _check_fingerprint(self) -> None:
-        if (
-            self._meta("schema_version") == SCHEMA_VERSION
-            and self._meta("fingerprint") == self.fingerprint
-        ):
+        version = self._meta("schema_version")
+        if version in _UPGRADABLE and self._meta("fingerprint") == self.fingerprint:
+            with self._conn:  # tables were added by _SCHEMA; just record the upgrade
+                self._conn.execute(
+                    "UPDATE meta SET value = ? WHERE key = 'schema_version'", (SCHEMA_VERSION,)
+                )
+            return
+        if version == SCHEMA_VERSION and self._meta("fingerprint") == self.fingerprint:
             return
         with self._conn:
             self._conn.execute("DELETE FROM faces")
@@ -249,10 +269,48 @@ class FaceCache:
         return entry
 
     def clear(self) -> None:
-        """Delete every cached image and face (privacy: 'delete local data')."""
+        """Delete every cached image, face and hash (privacy: 'delete local data')."""
         with self._conn:
             self._conn.execute("DELETE FROM faces")
             self._conn.execute("DELETE FROM images")
+            self._conn.execute("DELETE FROM image_hashes")
+
+    # -- duplicate hashes ------------------------------------------------------------
+
+    def lookup_hashes(self, path: Path) -> ImageHashes | None:
+        """Cached hashes of ``path`` if its size and mtime did not change, else None."""
+        try:
+            st = Path(path).stat()
+        except OSError:
+            return None
+        row = self._conn.execute(
+            "SELECT * FROM image_hashes WHERE path_key = ?", (path_key(path),)
+        ).fetchone()
+        if row is None or row["size"] != st.st_size or row["mtime_ns"] != st.st_mtime_ns:
+            return None
+        phash = None if row["phash"] is None else _to_unsigned(row["phash"])
+        return ImageHashes(row["sha256"], phash, row["width"], row["height"], row["taken_at"])
+
+    def store_hashes(self, path: Path, hashes: ImageHashes) -> None:
+        """Store (or replace) the hashes of ``path``."""
+        st = Path(path).stat()
+        phash = None if hashes.phash is None else _to_signed(hashes.phash)
+        with self._conn:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO image_hashes(path_key, path, size, mtime_ns, sha256,"
+                " phash, width, height, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    path_key(path),
+                    str(Path(path).resolve()),
+                    st.st_size,
+                    st.st_mtime_ns,
+                    hashes.sha256,
+                    phash,
+                    hashes.width,
+                    hashes.height,
+                    hashes.taken_at,
+                ),
+            )
 
     def _upsert_image(
         self, path: Path, sha256: str | None, status: ImageStatus, error: str | None
@@ -278,6 +336,15 @@ class FaceCache:
             ),
         ).fetchone()
         return int(row[0])
+
+
+def _to_signed(value: int) -> int:
+    """SQLite INTEGER is signed 64-bit: store an unsigned 64-bit hash in two's complement."""
+    return value - (1 << 64) if value >= 1 << 63 else value
+
+
+def _to_unsigned(value: int) -> int:
+    return value + (1 << 64) if value < 0 else value
 
 
 def _to_entry(row: sqlite3.Row) -> ImageEntry:
