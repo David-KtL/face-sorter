@@ -9,7 +9,9 @@ flowchart LR
     D --> E[embedder SFace]
     E <--> F[(cache SQLite)]
     E --> G[clustering]
-    G --> H[GUI revision]
+    G --> P[plan]
+    P --> H[GUI revision]
+    P --> K[CLI dry-run / plan.json]
     H --> I[organizer]
     I --> J[Carpeta de salida + manifest.json]
 ```
@@ -29,9 +31,10 @@ flowchart LR
 - `core/detector.py`: wrapper de `cv2.FaceDetectorYN`; devuelve cajas, landmarks y score.
 - `core/quality.py`: filtros por tamaño mínimo, nitidez (varianza del Laplaciano del recorte alineado) y score. Se aplica sobre métricas guardadas, sin reescanear.
 - `core/embedder.py`: interfaz `Embedder` + implementación `SFaceEmbedder`. Intercambiable.
-- `core/clustering.py`: `AgglomerativeClustering` con distancia coseno y umbral; HDBSCAN opcional.
+- `core/clustering.py`: `AgglomerativeClustering` con distancia coseno y umbral (0,55 por defecto, ADR 0005); grupos menores que `min_cluster_size` → sin clasificar. HDBSCAN opcional.
 - `core/cache.py`: SQLite con (ruta, tamaño, mtime, hash) → rostros y embeddings. Se vacía si cambia la huella del detector/embedder (ADR 0004).
-- `services/pipeline.py`: scanner → detector → calidad → embedder → clustering.
+- `services/pipeline.py`: scanner → caché → detector → embedder → calidad → clustering. Progreso por imagen y cancelación (`ScanCancelled`); lo ya procesado queda en caché.
+- `services/plan.py`: convierte el resultado en un plan (foto → carpeta de destino) sin tocar archivos; resumen de texto y JSON (`format_version` 1). Reglas en ADR 0005.
 - `services/organizer.py`: aplica el plan; escribe `manifest_<fecha>.json`; implementa `undo`.
 
 ## Modelo de datos (SQLite)

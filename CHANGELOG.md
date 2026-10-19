@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+### Added
+- `core/clustering.py`: clustering aglomerativo por distancia coseno; los grupos de 1 rostro van a `_sin_clasificar`; numeración estable por tamaño de grupo.
+- `services/pipeline.py`: escaneo completo con caché, progreso por imagen, cancelación reanudable y tolerancia a imágenes rotas.
+- `services/plan.py`: plan de organización (qué foto va a qué carpeta), resumen legible y exportación JSON.
+- CLI `face-sorter scan <carpeta> --out <salida> --dry-run` con barra de progreso y opciones `--plan`, `--threshold`, `--cache`, `--mode`, `-q`, `-v`.
+- ADR 0005: umbral de agrupación por defecto (0,55) y reglas de colocación.
+
+### Changed
+- Mensaje más claro para imágenes corruptas.
+
 ## [0.1.0] - 2026-10-19
 ### Added
 - `core/scanner.py`: búsqueda recursiva de imágenes soportadas (omite ocultos, no sigue enlaces de carpetas, permite excluir carpetas).

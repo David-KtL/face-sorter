@@ -35,14 +35,7 @@ def test_scan_parses_with_safe_defaults(tmp_path: Path) -> None:
     assert args.dry_run is False
 
 
-@pytest.mark.parametrize(
-    "argv",
-    [
-        ["scan", "in", "--out", "out", "--dry-run"],
-        ["gui"],
-        ["undo", "manifest_x.json"],
-    ],
-)
+@pytest.mark.parametrize("argv", [["gui"], ["undo", "manifest_x.json"]])
 def test_commands_not_implemented_yet(argv: list[str]) -> None:
     assert main(argv) == EXIT_NOT_IMPLEMENTED
 

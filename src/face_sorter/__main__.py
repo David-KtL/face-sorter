@@ -1,36 +1,91 @@
-"""Command-line interface: ``face-sorter scan | gui | undo``.
-
-Phase 0: the commands are wired up but have no logic yet.
-"""
+"""Command-line interface: ``face-sorter scan | gui | undo``."""
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from face_sorter import __version__
-from face_sorter.config import DEFAULT_OUTPUT_MODE, OutputMode
+from face_sorter.config import DEFAULT_OUTPUT_MODE, OutputMode, Settings
 
+EXIT_OK = 0
+EXIT_ERROR = 1
 EXIT_NOT_IMPLEMENTED = 2
+EXIT_INTERRUPTED = 130
 
 
-def _not_implemented(command: str, phase: int) -> int:
-    print(f"'{command}' is not implemented yet (planned for phase {phase}).", file=sys.stderr)
+def _not_implemented(what: str, phase: int) -> int:
+    print(f"{what} is not implemented yet (planned for phase {phase}).", file=sys.stderr)
     return EXIT_NOT_IMPLEMENTED
 
 
+def _error(message: str) -> int:
+    print(f"error: {message}", file=sys.stderr)
+    return EXIT_ERROR
+
+
+def _settings_from_args(args: argparse.Namespace) -> Settings:
+    settings = Settings()
+    if args.cache is not None:
+        settings = replace(settings, cache_path=args.cache)
+    if args.threshold is not None:
+        settings = replace(
+            settings, clustering=replace(settings.clustering, distance_threshold=args.threshold)
+        )
+    return replace(settings, output_mode=OutputMode(args.mode))
+
+
 def _cmd_scan(args: argparse.Namespace) -> int:
-    return _not_implemented("scan", 2)
+    source: Path = args.input.resolve()
+    output: Path = args.out.resolve()
+    if not source.is_dir():
+        return _error(f"input folder not found: {source}")
+    if output == source:
+        return _error("the output folder must be different from the input folder")
+    if not args.dry_run:
+        return _not_implemented("Applying the plan (scan without --dry-run)", 3)
+
+    # Heavy imports (OpenCV, scikit-learn) only when actually scanning.
+    from tqdm import tqdm
+
+    from face_sorter.services.pipeline import Pipeline, Progress
+    from face_sorter.services.plan import build_plan
+
+    settings = _settings_from_args(args)
+    with tqdm(unit="img", disable=args.quiet or None, file=sys.stderr) as bar:
+
+        def on_progress(p: Progress) -> None:
+            bar.total = p.total
+            bar.update(1)
+
+        try:
+            with Pipeline(settings) as pipeline:
+                result = pipeline.run(source, exclude=[output], progress=on_progress)
+        except KeyboardInterrupt:
+            print("\nInterrupted. Processed images are cached; run again to resume.")
+            return EXIT_INTERRUPTED
+        except FileNotFoundError as exc:  # missing models
+            return _error(str(exc))
+
+    plan = build_plan(result, output, settings.output_mode)
+    print("DRY RUN: no files were copied, moved or modified.\n")
+    print(plan.summary())
+    if args.plan is not None:
+        plan.save(args.plan)
+        print(f"\nPlan saved to {args.plan}")
+    return EXIT_OK
 
 
 def _cmd_gui(args: argparse.Namespace) -> int:
-    return _not_implemented("gui", 4)
+    return _not_implemented("'gui'", 4)
 
 
 def _cmd_undo(args: argparse.Namespace) -> int:
-    return _not_implemented("undo", 3)
+    return _not_implemented("'undo'", 3)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,6 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Group photos by person into folders (100% local).",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed logs.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     scan = sub.add_parser("scan", help="Scan a folder and group its photos by person.")
@@ -54,6 +110,16 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--dry-run", action="store_true", help="Show what would be done without touching files."
     )
+    scan.add_argument(
+        "--plan", type=Path, help="Also save the plan as JSON to this file (for review)."
+    )
+    scan.add_argument(
+        "--threshold",
+        type=float,
+        help="Clustering distance threshold (lower = stricter). Default from settings.",
+    )
+    scan.add_argument("--cache", type=Path, help="SQLite cache file (default: user cache dir).")
+    scan.add_argument("-q", "--quiet", action="store_true", help="Hide the progress bar.")
     scan.set_defaults(func=_cmd_scan)
 
     gui = sub.add_parser("gui", help="Open the graphical interface.")
@@ -72,6 +138,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``face-sorter`` command."""
     args = build_parser().parse_args(argv)
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
     func: Callable[[argparse.Namespace], int] = args.func
     return func(args)
 
