@@ -119,7 +119,9 @@ def _confirm_move(n_sources: int) -> bool:
 
 
 def _cmd_gui(args: argparse.Namespace) -> int:
-    return _not_implemented("'gui'", 4)
+    from face_sorter.gui.app import run_gui
+
+    return run_gui()
 
 
 def _cmd_undo(args: argparse.Namespace) -> int:

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # GUI tests without a screen
+
 from collections.abc import Callable
 from pathlib import Path
 
