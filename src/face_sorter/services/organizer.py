@@ -30,9 +30,11 @@ from face_sorter.config import (
     COPY_CHUNK_SIZE,
     MANIFEST_PREFIX,
     MANIFEST_SAVE_EVERY,
+    OUTPUT_MODE_LABELS,
     OutputMode,
 )
 from face_sorter.core.image_io import sha256_file
+from face_sorter.formatting import human_size
 from face_sorter.services.plan import OrganizationPlan, PlanItem
 
 log = logging.getLogger(__name__)
@@ -124,7 +126,9 @@ class Manifest:
     def from_dict(cls, data: dict[str, Any]) -> Manifest:
         """Rebuild a manifest from :meth:`to_dict` output."""
         if data.get("format_version") != MANIFEST_FORMAT_VERSION:
-            raise OrganizerError(f"Unsupported manifest version: {data.get('format_version')}")
+            raise OrganizerError(
+                f"Versión de manifiesto no soportada: {data.get('format_version')}"
+            )
         return cls(
             mode=OutputMode(data["mode"]),
             source_root=data["source_root"],
@@ -162,7 +166,7 @@ class Manifest:
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
-            raise OrganizerError(f"Cannot read manifest {path}: {exc}") from exc
+            raise OrganizerError(f"No se puede leer el manifiesto {path}: {exc}") from exc
         return cls.from_dict(data)
 
 
@@ -188,25 +192,33 @@ class ApplyResult:
         """Human-readable summary."""
         m = self.manifest
         lines = [
-            f"Status: {m.status.value}  (mode: {m.mode.value})",
-            f"Created: {self.count(EntryResult.CREATED)} | "
-            f"already there (identical): {self.count(EntryResult.SKIPPED_IDENTICAL)} | "
-            f"failed: {self.count(EntryResult.FAILED)}",
+            f"Estado: {_STATUS_LABELS[m.status.value]}  (modo: {OUTPUT_MODE_LABELS[m.mode]})",
+            f"Creados: {self.count(EntryResult.CREATED)} | "
+            f"ya existían (idénticos): {self.count(EntryResult.SKIPPED_IDENTICAL)} | "
+            f"fallidos: {self.count(EntryResult.FAILED)}",
         ]
         if self.fallbacks:
             lines.append(
-                f"Note: {self.fallbacks} hardlink(s) were not possible (different drive or "
-                "file system) and were copied instead."
+                f"Aviso: {self.fallbacks} enlace(s) duro(s) no fueron posibles (otra unidad o "
+                "sistema de archivos) y se copiaron."
             )
         if m.mode is OutputMode.MOVE:
             done = sum(1 for r in m.removals if r.state is RemovalState.DONE)
             kept = sum(1 for r in m.removals if r.state is RemovalState.KEPT)
-            lines.append(f"Originals moved: {done} | kept in place: {kept}")
+            lines.append(f"Originales movidos: {done} | se quedaron en su sitio: {kept}")
         for e in m.entries:
             if e.result is EntryResult.FAILED:
-                lines.append(f"  FAILED {e.source} -> {e.dest}: {e.error}")
-        lines.append(f"Manifest: {self.manifest_path}")
+                lines.append(f"  FALLÓ {e.source} -> {e.dest}: {e.error}")
+        lines.append(f"Manifiesto: {self.manifest_path}")
         return "\n".join(lines)
+
+
+_STATUS_LABELS = {
+    "in_progress": "en curso (interrumpido)",
+    "completed": "completado",
+    "cancelled": "cancelado",
+    "undone": "deshecho",
+}
 
 
 ProgressCallback = Callable[[int, int], None]
@@ -253,7 +265,9 @@ def _copy_exclusive(src: Path, dst: Path, expected_sha: str) -> None:
         raise
     if actual != expected_sha:
         dst.unlink(missing_ok=True)
-        raise OrganizerError(f"Verification failed for {dst} (source changed while copying?)")
+        raise OrganizerError(
+            f"La verificación falló para {dst} (¿cambió el original durante la copia?)"
+        )
 
 
 def _is_link_unsupported(exc: OSError) -> bool:
@@ -286,11 +300,11 @@ class Organizer:
                 escapes the output folder, or there is not enough free space to copy.
         """
         if self.output == self.source_root:
-            raise OrganizerError("The output folder must be different from the source folder")
+            raise OrganizerError("La carpeta de salida debe ser distinta de la de origen")
         for item in self.plan.items:
             dest = (self.output / item.dest).resolve()
             if not _is_within(dest, self.output) or dest == self.output:
-                raise OrganizerError(f"Destination outside the output folder: {item.dest}")
+                raise OrganizerError(f"Destino fuera de la carpeta de salida: {item.dest}")
         if self.plan.mode is OutputMode.COPY:
             needed = sum(
                 item.source.stat().st_size for item in self.plan.items if item.source.is_file()
@@ -301,7 +315,8 @@ class Organizer:
             free = shutil.disk_usage(probe).free
             if needed > free:
                 raise OrganizerError(
-                    f"Not enough free space in {probe}: need {needed:,} bytes, have {free:,}"
+                    f"No hay espacio suficiente en {probe}: se necesitan "
+                    f"{human_size(needed)} y hay {human_size(free)}"
                 )
 
     # -- helpers ---------------------------------------------------------------------
@@ -326,7 +341,7 @@ class Organizer:
         entry = ManifestEntry(str(src), str(first), item.group, EntryResult.FAILED)
         try:
             if not src.is_file():
-                raise OrganizerError("source file not found")
+                raise OrganizerError("no se encuentra el archivo de origen")
             self._ensure_dir(first.parent, manifest)
             sha = self._source_sha(src)
             entry.sha256, entry.size = sha, src.stat().st_size
@@ -353,7 +368,7 @@ class Organizer:
                     if candidate.is_file() and sha256_file(candidate) == sha:
                         entry.dest, entry.result = str(candidate), EntryResult.SKIPPED_IDENTICAL
                         return entry
-            raise OrganizerError("no free file name found")
+            raise OrganizerError("no se encontró un nombre de archivo libre")
         except (OSError, OrganizerError) as exc:
             entry.result, entry.error = EntryResult.FAILED, str(exc)
             log.warning("Could not place %s: %s", src, exc)
@@ -380,7 +395,7 @@ class Organizer:
                 manifest.save(path)
             try:
                 if sha256_file(Path(source)) != sha:
-                    raise OrganizerError("source changed since it was copied")
+                    raise OrganizerError("el original cambió después de copiarlo")
                 Path(source).unlink()
                 removal.state = RemovalState.DONE
             except (OSError, OrganizerError) as exc:
@@ -398,7 +413,7 @@ class Organizer:
     ) -> ApplyResult:
         """Execute the plan. See module docstring for the guarantees."""
         if self.plan.mode is OutputMode.MOVE and not confirm_move:
-            raise OrganizerError("Moving originals requires explicit confirmation")
+            raise OrganizerError("Mover los originales requiere confirmación explícita")
         self.preflight()
 
         manifest = Manifest(self.plan.mode, str(self.source_root), str(self.output))
@@ -445,7 +460,7 @@ class Organizer:
                 return candidate
             except FileExistsError:
                 continue
-        raise OrganizerError("Cannot create a manifest file")  # pragma: no cover
+        raise OrganizerError("No se puede crear el manifiesto")  # pragma: no cover
 
 
 def _still_valid(entry: ManifestEntry) -> bool:
@@ -491,19 +506,20 @@ class UndoReport:
     def summary(self) -> str:
         """Human-readable summary."""
         if self.already_undone:
-            return "This manifest was already undone. Nothing to do."
-        verb = "Would" if self.dry_run else "Did"
-        lines = [
-            f"{verb} restore {len(self.restored)} original(s) and delete "
-            f"{len(self.deleted)} created file(s).",
-        ]
+            return "Este manifiesto ya se deshizo. No hay nada que hacer."
+        restored, deleted = len(self.restored), len(self.deleted)
+        if self.dry_run:
+            head = f"Se restaurarían {restored} original(es) y se borrarían {deleted} copia(s)."
+        else:
+            head = f"Se restauraron {restored} original(es) y se borraron {deleted} copia(s)."
+        lines = [head]
         if self.kept_modified:
-            lines.append(f"Kept {len(self.kept_modified)} file(s) modified after the run:")
+            lines.append(f"Se conservan {len(self.kept_modified)} archivo(s) modificados después:")
             lines += [f"  {p}" for p in self.kept_modified]
         if self.missing:
-            lines.append(f"{len(self.missing)} created file(s) were already gone.")
+            lines.append(f"{len(self.missing)} copia(s) ya no existían.")
         if self.errors:
-            lines.append("Errors:")
+            lines.append("Errores:")
             lines += [f"  {e}" for e in self.errors]
         return "\n".join(lines)
 
@@ -554,7 +570,7 @@ def undo(manifest_path: Path, *, dry_run: bool = False) -> UndoReport:
             and sha256_file(Path(e.dest)) == removal.sha256
         ]
         if not candidates:
-            report.errors.append(f"Cannot restore {source}: no intact copy found")
+            report.errors.append(f"No se puede restaurar {source}: no hay ninguna copia intacta")
             continue
         ours = [e for e in candidates if e.result is EntryResult.CREATED]
         chosen = (ours or candidates)[0]
@@ -576,7 +592,7 @@ def undo(manifest_path: Path, *, dry_run: bool = False) -> UndoReport:
                 _copy_exclusive(Path(chosen.dest), source, removal.sha256)
         except (OSError, OrganizerError) as exc:
             report.restored.pop()
-            report.errors.append(f"Cannot restore {source}: {exc}")
+            report.errors.append(f"No se puede restaurar {source}: {exc}")
 
     # 2. Delete what we created, if unchanged.
     for entry in created:
@@ -595,7 +611,7 @@ def undo(manifest_path: Path, *, dry_run: bool = False) -> UndoReport:
                 dest.unlink()
             except OSError as exc:
                 report.deleted.pop()
-                report.errors.append(f"Cannot delete {dest}: {exc}")
+                report.errors.append(f"No se puede borrar {dest}: {exc}")
 
     # 3. Remove folders we created, deepest first, only if empty.
     if not dry_run:

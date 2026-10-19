@@ -102,7 +102,7 @@ def test_summary_and_json(tmp_path: Path) -> None:
     )
     plan = build_plan(result, tmp_path / "out", OutputMode.HARDLINK)
     text = plan.summary()
-    assert "Images: 3" in text and "person groups: 2" in text and "hardlink" in text
+    assert "Fotos: 3" in text and "grupos de personas: 2" in text and "enlace duro" in text
     assert "Persona_002" in text and "bad" in text
 
     out = tmp_path / "plan.json"

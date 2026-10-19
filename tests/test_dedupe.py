@@ -68,7 +68,7 @@ def test_detects_all_exact_and_near_duplicates(ds: DupSet, scanner: DedupeScanne
     assert not grouped & set(ds.unique)  # distinct photos never grouped
 
 
-def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner) -> None:
+def test_keep_rule_resolution_date_size_path(ds: DupSet, scanner: DedupeScanner) -> None:
     result = scanner.run(ds.root)
     for g in result.groups:
         if g.kind is DupKind.EXACT:
@@ -76,8 +76,10 @@ def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner)
             assert g.keep.path.name.startswith("p") and "copia" not in g.keep.path.name
         else:
             assert g.keep.pixels == max(p.pixels for p in g.photos)
-            same_res = [p for p in g.photos if p.pixels == g.keep.pixels]
-            assert g.keep.size == max(p.size for p in same_res)
+            # The dated JPEG original wins over its heavier PNG conversion (no EXIF date).
+            assert g.keep.path.parent.name == "fotos" and g.keep.path.suffix == ".jpg"
+            png = next(p for p in g.photos if p.path.suffix == ".png")
+            assert png.size > g.keep.size
 
     def photo(name: str, w: int, size: int, date: str | None) -> Photo:
         return Photo(Path(name), size, ImageHashes("x", 0, w, w, date))
@@ -92,7 +94,7 @@ def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner)
         ],
         key=keep_key,
     )
-    assert [p.path.name for p in ranked] == ["hires.jpg", "big.jpg", "old.jpg", "a.jpg", "name.jpg"]
+    assert [p.path.name for p in ranked] == ["hires.jpg", "old.jpg", "a.jpg", "name.jpg", "big.jpg"]
 
 
 def test_default_selection_is_exact_only(ds: DupSet, scanner: DedupeScanner) -> None:
@@ -102,7 +104,7 @@ def test_default_selection_is_exact_only(ds: DupSet, scanner: DedupeScanner) -> 
     # A selected near group absorbs the exact group inside it.
     eff = effective_selection(result, result.default_selection(include_near=True))
     assert sorted(eff) == sorted(near_ids)
-    assert "Use --near" in result.summary()
+    assert "Usa --near" in result.summary()
 
 
 def test_cache_is_reused(ds: DupSet, tmp_path: Path) -> None:
@@ -160,7 +162,7 @@ def test_override_keep_and_invariant(ds: DupSet, scanner: DedupeScanner) -> None
     assert small.path not in {i.source for i in plan.items}
 
     small.path.unlink()  # the copy to keep disappeared
-    with pytest.raises(DedupeError, match="no longer exists"):
+    with pytest.raises(DedupeError, match="ya no existe"):
         build_dedupe_plan(result, [g.id])
 
 
@@ -168,7 +170,7 @@ def test_changed_keep_is_refused(ds: DupSet, scanner: DedupeScanner) -> None:
     result = scanner.run(ds.root)
     g = result.group(result.default_selection()[0])
     g.keep.path.write_bytes(b"edited")
-    with pytest.raises(DedupeError, match="changed"):
+    with pytest.raises(DedupeError, match="cambió"):
         build_dedupe_plan(result, [g.id])
 
 
@@ -184,10 +186,10 @@ def test_keep_removed_by_other_group_is_refused(tmp_path: Path) -> None:
     g1 = DuplicateGroup("exact-001", DupKind.EXACT, [a, b], a)
     g2 = DuplicateGroup("exact-002", DupKind.EXACT, [c, a], c)  # removes a, kept by g1
     result = DedupeResult(tmp_path, [g1, g2])
-    with pytest.raises(DedupeError, match="also be removed"):
+    with pytest.raises(DedupeError, match="también se retiraría"):
         build_dedupe_plan(result, ["exact-001", "exact-002"])
     g3 = DuplicateGroup("exact-003", DupKind.EXACT, [c], c)
-    with pytest.raises(DedupeError, match="nothing to remove"):
+    with pytest.raises(DedupeError, match="nada que retirar"):
         build_dedupe_plan(DedupeResult(tmp_path, [g3]), ["exact-003"])
 
 
@@ -236,7 +238,7 @@ def test_scanner_skips_duplicates_folder(tmp_path: Path) -> None:
 def test_trash_requires_confirmation_and_checks_content(ds: DupSet, scanner: DedupeScanner) -> None:
     result = scanner.run(ds.root)
     selected = result.default_selection()
-    with pytest.raises(DedupeError, match="confirmation"):
+    with pytest.raises(DedupeError, match="confirmación"):
         trash_duplicates(result, selected)
 
     sent: list[str] = []
@@ -246,7 +248,7 @@ def test_trash_requires_confirmation_and_checks_content(ds: DupSet, scanner: Ded
     assert str(victim) not in sent and [p for p, _ in report.failed] == [str(victim)]
     assert len(sent) == len(selected) - 1
     assert report.record is not None and report.record.is_file()
-    assert "Recycle Bin" in report.summary()
+    assert "papelera del sistema" in report.summary()
 
 
 def test_trash_uses_send2trash(

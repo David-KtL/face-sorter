@@ -6,11 +6,15 @@ hardcodes them. Clustering thresholds are added in phase 2.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+import logging
+import os
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
-from platformdirs import user_cache_dir
+from platformdirs import user_cache_dir, user_config_dir, user_log_dir
 
 APP_NAME = "face-sorter"
 
@@ -38,15 +42,45 @@ class OutputMode(StrEnum):
 
 DEFAULT_OUTPUT_MODE = OutputMode.COPY
 
+# Spanish names shown to the user.
+OUTPUT_MODE_LABELS: dict[OutputMode, str] = {
+    OutputMode.COPY: "copiar",
+    OutputMode.HARDLINK: "enlace duro",
+    OutputMode.MOVE: "mover",
+}
+
 
 def default_models_dir() -> Path:
     """Return the directory where the ONNX models are expected."""
     return PROJECT_ROOT / "models"
 
 
+# If set, every per-user file (settings, cache, logs) lives under this folder instead of
+# the platform's standard folders. Used by the tests; also handy for a portable setup.
+HOME_ENV_VAR = "FACE_SORTER_HOME"
+
+
+def _user_dir(kind: str) -> Path:
+    home = os.environ.get(HOME_ENV_VAR)
+    if home:
+        return Path(home) / kind
+    finder = {"cache": user_cache_dir, "config": user_config_dir, "log": user_log_dir}[kind]
+    return Path(finder(APP_NAME, appauthor=False))
+
+
 def default_cache_path() -> Path:
     """Return the SQLite cache path in the per-user cache directory."""
-    return Path(user_cache_dir(APP_NAME, appauthor=False)) / "cache.sqlite"
+    return _user_dir("cache") / "cache.sqlite"
+
+
+def settings_path() -> Path:
+    """Where the user's settings are saved (JSON)."""
+    return _user_dir("config") / "settings.json"
+
+
+def log_path() -> Path:
+    """Where the application log is written."""
+    return _user_dir("log") / "face-sorter.log"
 
 
 @dataclass(frozen=True)
@@ -149,3 +183,88 @@ class Settings:
     def recognizer_model_path(self) -> Path:
         """Path to the SFace recognizer model."""
         return self.models_dir / RECOGNIZER_MODEL_FILENAME
+
+
+# -- user settings (RF-14) -------------------------------------------------------------
+
+_log = logging.getLogger(__name__)
+
+# Settings the user can change: "section.field" -> (type, minimum, maximum).
+EDITABLE_SETTINGS: dict[str, tuple[type, float, float]] = {
+    "clustering.distance_threshold": (float, 0.2, 0.9),
+    "clustering.min_cluster_size": (int, 1, 50),
+    "quality.min_face_size": (int, 10, 1000),
+    "quality.min_score": (float, 0.5, 1.0),
+    "quality.min_sharpness": (float, 0.0, 1000.0),
+    "dedupe.max_distance": (int, 0, 20),
+}
+
+
+def settings_to_dict(settings: Settings) -> dict[str, Any]:
+    """The user-editable part of ``settings`` as a flat JSON-friendly dict."""
+    data: dict[str, Any] = {"output_mode": settings.output_mode.value}
+    for key in EDITABLE_SETTINGS:
+        section, name = key.split(".")
+        data[key] = getattr(getattr(settings, section), name)
+    return data
+
+
+def settings_from_dict(data: dict[str, Any], base: Settings | None = None) -> Settings:
+    """Apply validated values from ``data`` on top of ``base``.
+
+    Unknown keys, wrong types and out-of-range values are ignored (with a warning),
+    so a hand-edited or old settings file never prevents the app from starting.
+    """
+    settings = base or Settings()
+    mode = data.get("output_mode")
+    if mode is not None:
+        try:
+            settings = replace(settings, output_mode=OutputMode(mode))
+        except ValueError:
+            _log.warning("Ignoring invalid output_mode in settings: %r", mode)
+    for key, value in data.items():
+        if key == "output_mode":
+            continue
+        if key not in EDITABLE_SETTINGS:
+            _log.warning("Ignoring unknown setting %r", key)
+            continue
+        kind, low, high = EDITABLE_SETTINGS[key]
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            _log.warning("Ignoring non-numeric setting %s=%r", key, value)
+            continue
+        if kind is int and value != int(value):
+            _log.warning("Ignoring non-integer setting %s=%r", key, value)
+            continue
+        if not low <= value <= high:
+            _log.warning("Ignoring out-of-range setting %s=%r (%s..%s)", key, value, low, high)
+            continue
+        section, name = key.split(".")
+        part = replace(getattr(settings, section), **{name: kind(value)})
+        settings = replace(settings, **{section: part})
+    return settings
+
+
+def load_settings(path: Path | None = None) -> Settings:
+    """Load the user's settings; defaults if the file is missing or unreadable."""
+    path = path or settings_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return Settings()
+    except (OSError, ValueError) as exc:
+        _log.warning("Cannot read settings %s (%s); using defaults", path, exc)
+        return Settings()
+    if not isinstance(data, dict):
+        _log.warning("Settings file %s is not a JSON object; using defaults", path)
+        return Settings()
+    return settings_from_dict(data)
+
+
+def save_settings(settings: Settings, path: Path | None = None) -> Path:
+    """Save the user-editable settings atomically. Returns the file path."""
+    path = path or settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(settings_to_dict(settings), indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+    return path

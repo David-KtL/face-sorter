@@ -110,3 +110,51 @@ DUP_CONFIRM_TRASH = (
     "pero no con «Deshacer». ¿Continuar?"
 )
 DUP_FAILED = "No se pudo completar la operación de duplicados"
+
+# Settings, CSV, errors (phase 6)
+MENU_SETTINGS = "Ajustes…"
+SETTINGS_TITLE = "Ajustes"
+SET_THRESHOLD = "Umbral de agrupación:"
+SET_THRESHOLD_TIP = (
+    "Distancia máxima para considerar dos rostros la misma persona. Más bajo = más "
+    "estricto (puede partir a una persona en varios grupos); más alto = puede mezclar "
+    "personas. Recomendado: 0,55."
+)
+SET_MIN_GROUP = "Mínimo de rostros por grupo:"
+SET_MIN_GROUP_TIP = "Los grupos más pequeños van a «_sin_clasificar»."
+SET_MIN_FACE = "Tamaño mínimo de rostro (px):"
+SET_MIN_FACE_TIP = "Rostros más pequeños van a «_baja_calidad»."
+SET_MIN_SCORE = "Confianza mínima de detección:"
+SET_MIN_SCORE_TIP = "Detecciones con menos confianza van a «_baja_calidad»."
+SET_MIN_SHARP = "Nitidez mínima:"
+SET_MIN_SHARP_TIP = "Rostros más borrosos van a «_baja_calidad». Más alto = más exigente."
+SET_DUP_DISTANCE = "Sensibilidad de casi duplicados:"
+SET_DUP_DISTANCE_TIP = (
+    "Diferencia máxima (de 0 a 20) entre dos fotos para considerarlas casi duplicadas. "
+    "Más bajo = más estricto. Recomendado: 6."
+)
+SET_MODE = "Modo por defecto:"
+SET_DEFAULTS = "Restaurar valores por defecto"
+SET_DELETE_DATA = "Borrar datos locales…"
+SET_SAVED = (
+    "Ajustes guardados. Se aplicarán en el próximo escaneo, que será rápido gracias a la " "caché."
+)
+CONFIRM_DELETE_DATA_TITLE = "¿Borrar datos locales?"
+CONFIRM_DELETE_DATA = (
+    "Se borrará la base de datos local con los rostros y huellas calculados:\n{path}\n\n"
+    "Tus fotos no se tocan. El próximo escaneo tendrá que analizarlas de nuevo. ¿Continuar?"
+)
+DATA_DELETED = "Datos locales borrados."
+BUSY = "Espera a que termine la tarea en curso."
+EXPORT_CSV = "Exportar CSV…"
+EXPORT_CSV_TITLE = "Guardar reporte CSV"
+CSV_FILTER = "CSV (*.csv)"
+CSV_SAVED = "Reporte guardado ({n} filas):\n{path}"
+UNEXPECTED_ERROR = "Error inesperado"
+UNEXPECTED_ERROR_TEXT = (
+    "Ha ocurrido un error inesperado. Tus fotos no se han modificado.\n\n{error}\n\n"
+    "Detalles en el registro:\n{log}"
+)
+ERR_PERMISSION = "Permiso denegado: {path}"
+ERR_DISK_FULL = "No queda espacio en el disco."
+ERR_MEMORY = "Memoria insuficiente. Prueba con una carpeta más pequeña."

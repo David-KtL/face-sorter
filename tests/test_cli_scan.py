@@ -54,7 +54,7 @@ def test_scan_dry_run_end_to_end(
     assert main(argv) == EXIT_OK
 
     stdout = capsys.readouterr().out
-    assert "DRY RUN" in stdout and "Persona_003" in stdout
+    assert "SIMULACIÓN" in stdout and "Persona_003" in stdout
     assert not out.exists()  # dry-run creates nothing
     assert before == {p: sha256_file(p) for p in src.rglob("*") if p.is_file()}
 
@@ -74,7 +74,7 @@ def test_missing_models_is_a_clear_error(
     import face_sorter.__main__ as cli
     from face_sorter.config import Settings
 
-    monkeypatch.setattr(cli, "Settings", lambda: Settings(models_dir=tmp_path / "none"))
+    monkeypatch.setattr(cli, "load_settings", lambda: Settings(models_dir=tmp_path / "none"))
     src = tmp_path / "src"
     src.mkdir()
     write_face_image(src / "a.png", 100)  # valid image -> models are needed
@@ -103,7 +103,7 @@ def test_scan_apply_then_undo_end_to_end(
     before = _copy_people(lfw_people, src)
     argv = ["scan", str(src), "--out", str(out), "-q", "--cache", str(tmp_path / "c.sqlite")]
     assert main(argv) == EXIT_OK
-    assert "Created: 4" in capsys.readouterr().out
+    assert "Creados: 4" in capsys.readouterr().out
     copies = sorted(p.relative_to(out).as_posix() for p in out.rglob("*.jpg"))
     assert len(copies) == 4 and all(c.startswith("Persona_00") for c in copies)
     assert before == {
@@ -131,7 +131,7 @@ def test_scan_move_asks_and_respects_no(
     monkeypatch.setattr("builtins.input", lambda prompt: "n")
     argv = ["scan", str(src), "--out", str(out), "-q", "--mode", "move"]
     assert main(argv + ["--cache", str(tmp_path / "c.sqlite")]) == EXIT_OK
-    assert "Nothing was changed" in capsys.readouterr().out
+    assert "No se cambió nada" in capsys.readouterr().out
     assert not out.exists()
     assert len(before) == sum(1 for p in src.rglob("*") if p.is_file())
 
@@ -159,7 +159,7 @@ def test_dedupe_cli(
 
     assert main(["dedupe", str(ds.root), "--dry-run", *cache]) == EXIT_OK
     out = capsys.readouterr().out
-    assert "exact groups: 2" in out and "near-duplicate groups: 2" in out
+    assert "grupos exactos: 2" in out and "grupos casi duplicados: 2" in out
     assert sorted(p for p in ds.root.rglob("*") if p.is_file()) == before
 
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
@@ -168,10 +168,10 @@ def test_dedupe_cli(
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     monkeypatch.setattr("builtins.input", lambda prompt: "n")
     assert main(["dedupe", str(ds.root), *cache]) == EXIT_OK
-    assert "Nothing was changed" in capsys.readouterr().out
+    assert "No se cambió nada" in capsys.readouterr().out
 
     assert main(["dedupe", str(ds.root), "--near", "--yes", *cache]) == EXIT_OK
-    assert "Originals moved: 8" in capsys.readouterr().out
+    assert "Originales movidos: 8" in capsys.readouterr().out
     manifest = next((ds.root / "_duplicados").glob("manifest_*.json"))
     assert main(["undo", str(manifest)]) == EXIT_OK
     assert (
@@ -194,9 +194,9 @@ def test_dedupe_cli_trash_and_nothing_to_do(
     ds = build(tmp_path / "photos", n_photos=2, n_unique=0)
     cache = ["--cache", str(tmp_path / "c.sqlite"), "-q", "--yes"]
     assert main(["dedupe", str(ds.root), "--trash", *cache]) == EXIT_OK
-    assert len(sent) == 2 and "trash" in capsys.readouterr().out.lower()
+    assert len(sent) == 2 and "papelera" in capsys.readouterr().out.lower()
 
     empty = tmp_path / "empty"
     empty.mkdir()
     assert main(["dedupe", str(empty), *cache]) == EXIT_OK
-    assert "Nothing to do" in capsys.readouterr().out
+    assert "No hay nada que hacer" in capsys.readouterr().out

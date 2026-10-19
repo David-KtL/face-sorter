@@ -4,8 +4,8 @@
 2. Group: exact duplicates (same SHA-256) and near duplicates (dHash within
    ``max_distance``). A near group absorbs the exact copies of its members, so each
    photo belongs to at most one group that is applied.
-3. Choose the copy to keep (RF-18): highest resolution > largest file > oldest EXIF
-   date > shortest path. The user can override it.
+3. Choose the copy to keep (RF-18): highest resolution > oldest EXIF date > largest
+   file > shortest path. The user can override it.
 4. Act: move the other copies to ``<folder>/_duplicados/`` with the organizer (manifest
    + undo), or send them to the system trash with explicit confirmation. Before acting,
    every group is checked to keep at least one intact copy (RF-19).
@@ -27,6 +27,7 @@ from face_sorter.core.cache import FaceCache
 from face_sorter.core.hashing import ImageHashes, compute_hashes, connected_groups, near_pairs
 from face_sorter.core.image_io import sha256_file
 from face_sorter.core.scanner import scan
+from face_sorter.formatting import human_size
 from face_sorter.services.pipeline import ScanCancelled, cache_fingerprint
 from face_sorter.services.plan import OrganizationPlan, PlanItem
 
@@ -58,12 +59,17 @@ class Photo:
         return (self.hashes.width or 0) * (self.hashes.height or 0)
 
 
-def keep_key(photo: Photo) -> tuple[int, int, str, int, str]:
-    """Sort key: the best copy to keep sorts first (RF-18)."""
+def keep_key(photo: Photo) -> tuple[int, str, int, int, str]:
+    """Sort key: the best copy to keep sorts first (RF-18).
+
+    Highest resolution > oldest EXIF date (photos without a date go last) > largest
+    file > shortest path. The date comes before the size so that a heavier conversion
+    (e.g. JPEG -> PNG, which loses the EXIF date) does not win over the original.
+    """
     return (
         -photo.pixels,
+        photo.hashes.taken_at or "9999",
         -photo.size,
-        photo.hashes.taken_at or "9999",  # photos without a date go last
         len(str(photo.path)),
         str(photo.path).lower(),
     )
@@ -90,7 +96,7 @@ class DuplicateGroup:
             if p.path == Path(path):
                 self.keep = p
                 return
-        raise DedupeError(f"{path} is not in group {self.id}")
+        raise DedupeError(f"{path} no pertenece al grupo {self.id}")
 
 
 @dataclass
@@ -119,18 +125,18 @@ class DedupeResult:
         exact = [g for g in self.groups if g.kind is DupKind.EXACT]
         near = [g for g in self.groups if g.kind is DupKind.NEAR]
         lines = [
-            f"Folder: {self.root}",
-            f"Photos: {self.n_photos} | exact groups: {len(exact)} | "
-            f"near-duplicate groups: {len(near)} | unreadable: {len(self.errors)}",
+            f"Carpeta: {self.root}",
+            f"Fotos: {self.n_photos} | grupos exactos: {len(exact)} | "
+            f"grupos casi duplicados: {len(near)} | ilegibles: {len(self.errors)}",
         ]
         for g in self.groups:
             mark = "*" if g.id in effective_selection(self, chosen) else " "
-            extra = f", distance <= {g.distance}" if g.kind is DupKind.NEAR else ""
-            lines.append(f"{mark} [{g.id}] {len(g.photos)} copies{extra}")
-            lines.append(f"    keep:   {self._describe(g.keep)}")
-            lines += [f"    remove: {self._describe(p)}" for p in g.duplicates]
+            extra = f", distancia <= {g.distance}" if g.kind is DupKind.NEAR else ""
+            lines.append(f"{mark} [{g.id}] {len(g.photos)} copias{extra}")
+            lines.append(f"    conservar: {self._describe(g.keep)}")
+            lines += [f"    retirar:   {self._describe(p)}" for p in g.duplicates]
         if near and not any(g.id in chosen for g in near):
-            lines.append("\nNear duplicates are only listed. Use --near to include them.")
+            lines.append("\nLos casi duplicados solo se listan. Usa --near para incluirlos.")
         return "\n".join(lines)
 
     def _describe(self, p: Photo) -> str:
@@ -138,16 +144,6 @@ class DedupeResult:
         res = f"{p.hashes.width}x{p.hashes.height}" if p.pixels else "?"
         date = f", {p.hashes.taken_at}" if p.hashes.taken_at else ""
         return f"{rel}  ({res}, {human_size(p.size)}{date})"
-
-
-def human_size(n: int) -> str:
-    """``1536`` -> ``1.5 KB``."""
-    size = float(n)
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024 or unit == "GB":
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} GB"  # pragma: no cover
 
 
 ProgressCallback = Callable[[int, int], None]
@@ -292,13 +288,13 @@ def verify_selection(result: DedupeResult, selected: Iterable[str]) -> list[Dupl
     for g in groups:
         keep = g.keep
         if keep.path in removed:
-            raise DedupeError(f"[{g.id}] the copy to keep would also be removed: {keep.path}")
+            raise DedupeError(f"[{g.id}] la copia a conservar también se retiraría: {keep.path}")
         if not keep.path.is_file():
-            raise DedupeError(f"[{g.id}] the copy to keep no longer exists: {keep.path}")
+            raise DedupeError(f"[{g.id}] la copia a conservar ya no existe: {keep.path}")
         if sha256_file(keep.path) != keep.hashes.sha256:
-            raise DedupeError(f"[{g.id}] the copy to keep changed since the scan: {keep.path}")
+            raise DedupeError(f"[{g.id}] la copia a conservar cambió desde el escaneo: {keep.path}")
         if not g.duplicates:
-            raise DedupeError(f"[{g.id}] has nothing to remove")
+            raise DedupeError(f"[{g.id}] no tiene nada que retirar")
     return groups
 
 
@@ -328,11 +324,11 @@ class TrashReport:
 
     def summary(self) -> str:
         """Human-readable summary."""
-        lines = [f"Sent to the trash: {len(self.trashed)} | failed: {len(self.failed)}"]
-        lines += [f"  FAILED {p}: {e}" for p, e in self.failed]
-        lines.append("They can be recovered from the system trash (Recycle Bin).")
+        lines = [f"Enviadas a la papelera: {len(self.trashed)} | fallidas: {len(self.failed)}"]
+        lines += [f"  FALLÓ {p}: {e}" for p, e in self.failed]
+        lines.append("Se pueden recuperar desde la papelera del sistema.")
         if self.record:
-            lines.append(f"Record: {self.record}")
+            lines.append(f"Registro: {self.record}")
         return "\n".join(lines)
 
 
@@ -353,7 +349,7 @@ def trash_duplicates(
         DedupeError: without confirmation, or if the invariant does not hold.
     """
     if not confirm:
-        raise DedupeError("Sending to the trash requires explicit confirmation")
+        raise DedupeError("Enviar a la papelera requiere confirmación explícita")
     if send is None:
         from send2trash import send2trash
 
@@ -364,7 +360,7 @@ def trash_duplicates(
         for p in g.duplicates:
             try:
                 if sha256_file(p.path) != p.hashes.sha256:
-                    raise DedupeError("changed since the scan; not trashed")
+                    raise DedupeError("cambió desde el escaneo; no se envió a la papelera")
                 send(str(p.path))
                 report.trashed.append(str(p.path))
             except (OSError, DedupeError) as exc:

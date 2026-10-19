@@ -13,9 +13,19 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from face_sorter.config import PROJECT_ROOT, Settings
+from face_sorter.config import HOME_ENV_VAR, PROJECT_ROOT, Settings
 
 LFW_DIR = PROJECT_ROOT / "data" / "lfw"
+
+
+@pytest.fixture(autouse=True)
+def isolated_home(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> Path:
+    """Never read or write the real user's settings, cache or logs during tests."""
+    home = tmp_path_factory.mktemp("home")
+    monkeypatch.setenv(HOME_ENV_VAR, str(home))
+    return home
 
 
 @pytest.fixture(scope="session")

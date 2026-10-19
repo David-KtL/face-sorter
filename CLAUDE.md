@@ -26,9 +26,9 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 ```
 src/face_sorter/
   core/      scanner, image_io, detector, embedder, quality, clustering, cache, hashing (sha256, dHash, Hamming)
-  services/  pipeline, plan (qué va a dónde), review (ediciones del usuario, sin Qt), organizer (copiar/enlazar/mover + manifiesto + undo), dedupe (grupos de duplicados, copia a conservar)
-  gui/       main_window, workers (QThread), thumbnails (QThreadPool), strings (textos ES), app
-  config.py  __main__.py (CLI)
+  services/  pipeline, plan (qué va a dónde), report (CSV), review (ediciones del usuario, sin Qt), organizer (copiar/enlazar/mover + manifiesto + undo), dedupe (grupos de duplicados, copia a conservar)
+  gui/       main_window, duplicates_page, settings_dialog, workers (QThread), thumbnails (QThreadPool), errors, strings (textos ES), app
+  config.py (rutas, umbrales, ajustes de usuario)  logging_setup.py  formatting.py  __main__.py (CLI)
 tests/  docs/  docs/adr/  scripts/  models/  .claude/
 ```
 
@@ -43,6 +43,7 @@ face-sorter scan <carpeta> --out <salida> [--mode copy|hardlink|move] [--yes]   
 face-sorter undo <salida>/manifest_<fecha>.json [--dry-run]
 face-sorter dedupe <carpeta> --dry-run                 # lista duplicados
 face-sorter dedupe <carpeta> [--near] [--trash] [--yes] # mueve a _duplicados (o papelera)
+face-sorter scan <carpeta> --out <salida> --dry-run --csv reporte.csv  # reporte CSV
 face-sorter gui
 pytest -q --cov=face_sorter
 ruff check . && black --check . && mypy src
@@ -66,4 +67,9 @@ ruff check . && black --check . && mypy src
 4. Si hay decisiones ambiguas, pregunta antes de asumir.
 
 ## Estado actual
-Ver `docs/PROGRESO.md` (fuente de verdad del avance).
+v1.0.0 publicada (todas las fases cerradas). Ver `docs/PROGRESO.md` y `docs/VERIFICACION.md`.
+
+## Notas para mantenimiento
+- La app es **solo en español**: textos de GUI en `gui/strings.py`; CLI y resúmenes de servicios en español; logs y código en inglés.
+- Ajustes del usuario: `config.load_settings()/save_settings()` (rangos en `EDITABLE_SETTINGS`). Los tests aíslan todo con `FACE_SORTER_HOME` (fixture `isolated_home`).
+- En heredocs de Bash las barras invertidas se alteran: para editar textos con `\n`, escribir un script en un archivo.

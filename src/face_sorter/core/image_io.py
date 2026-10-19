@@ -37,7 +37,7 @@ def decode_image(data: bytes) -> BGRImage:
             upright = ImageOps.exif_transpose(img)
             rgb = upright.convert("RGB")
     except UnidentifiedImageError as exc:
-        raise ImageLoadError("unrecognized image format or corrupt file") from exc
+        raise ImageLoadError("formato no reconocido o archivo dañado") from exc
     except Exception as exc:  # Pillow raises many different types for bad input.
         raise ImageLoadError(f"{type(exc).__name__}: {exc}") from exc
     array = np.asarray(rgb, dtype=np.uint8)
