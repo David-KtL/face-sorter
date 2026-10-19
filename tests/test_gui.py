@@ -340,3 +340,114 @@ def test_undo_from_manifest_file(
     window.undo_from_file()  # second time: already undone
     qtbot.waitUntil(lambda: len(dialogs(window).infos) == 2, timeout=20_000)
     assert "already undone" in dialogs(window).infos[-1]
+
+
+# -- duplicates -----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def dup_window(qtbot: QtBot, tmp_path: Path) -> Iterator[tuple[MainWindow, Any]]:
+    from tests.dupdata import build
+
+    ds = build(tmp_path / "dups", n_photos=2, n_unique=1)
+    w = make_window(qtbot, tmp_path)
+    w.source_edit.setText(str(ds.root))
+    w.dedupe_button.click()
+    qtbot.waitUntil(lambda: w.pages.currentWidget() is w.dup_page, timeout=20_000)
+    yield w, ds
+    w.close()
+
+
+def test_find_duplicates_shows_groups(qtbot: QtBot, dup_window: tuple[MainWindow, Any]) -> None:
+    w, ds = dup_window
+    page = w.dup_page
+    assert w.worker is not None and w.worker.thread_id != threading.get_ident()
+    texts = [page.group_list.item(i).text() for i in range(page.group_list.count())]
+    assert sum(t.startswith("Exacto") for t in texts) == 2
+    assert sum(t.startswith("Casi duplicado") for t in texts) == 2
+    assert len(page.selected_ids()) == 2  # exact only by default
+    assert page.photo_list.count() == 2
+    assert "CONSERVAR" in page.photo_list.item(0).text()
+    page.loader.wait()
+    qtbot.waitUntil(
+        lambda: page._thumbs[page.photo_list.item(0).data(ROLE)].cacheKey()
+        != page._placeholder.cacheKey()
+    )
+
+    w.preview_duplicates()
+    assert "exact groups: 2" in dialogs(w).shown[-1]
+
+
+def test_change_keep_check_near_and_move_then_undo(
+    qtbot: QtBot, dup_window: tuple[MainWindow, Any]
+) -> None:
+    from PySide6.QtCore import Qt
+
+    w, ds = dup_window
+    page = w.dup_page
+    before = sorted(p for p in ds.root.rglob("*") if p.is_file())
+
+    near_rows = [
+        i
+        for i in range(page.group_list.count())
+        if page.group_list.item(i).text().startswith("Casi")
+    ]
+    page.group_list.item(near_rows[0]).setCheckState(Qt.CheckState.Checked)
+    page.group_list.setCurrentRow(near_rows[0])
+    group = page.current_group()
+    assert group is not None
+    small = next(
+        i for i in range(page.photo_list.count()) if "small" in page.photo_list.item(i).text()
+    )
+    page.photo_list.item(small).setSelected(True)
+    assert page.keep_button.isEnabled()
+    page.keep_button.click()
+    assert "small" in group.keep.path.name
+    assert len(page.selected_ids()) == 2  # near absorbs its exact group
+    assert page.n_selected_files() == 4 + 1
+
+    dialogs(w).answers["ask"] = False
+    page.move_button.click()
+    assert sorted(p for p in ds.root.rglob("*") if p.is_file()) == before
+
+    dialogs(w).answers["ask"] = True
+    page.move_button.click()
+    qtbot.waitUntil(lambda: w.pages.currentWidget() is w.result_page, timeout=20_000)
+    assert group.keep.path.exists()
+    assert all(not p.path.exists() for p in group.duplicates)
+    w.undo_button.click()
+    qtbot.waitUntil(lambda: not w.undo_button.isEnabled(), timeout=20_000)
+    after = sorted(p for p in ds.root.rglob("*") if p.is_file() and "_duplicados" not in p.parts)
+    assert after == before
+
+
+def test_trash_from_gui(
+    qtbot: QtBot, dup_window: tuple[MainWindow, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import send2trash
+
+    sent: list[str] = []
+    monkeypatch.setattr(send2trash, "send2trash", sent.append)
+    w, _ = dup_window
+    dialogs(w).answers["ask"] = True
+    w.dup_page.trash_button.click()
+    qtbot.waitUntil(lambda: w.pages.currentWidget() is w.result_page, timeout=20_000)
+    assert len(sent) == 2
+    assert "trash" in w.result_text.toPlainText().lower()
+    assert not w.undo_button.isEnabled()
+
+
+def test_dedupe_needs_folder_and_nothing_selected(
+    qtbot: QtBot, window: MainWindow, tmp_path: Path
+) -> None:
+    window.dedupe_button.click()
+    assert "duplicados" in dialogs(window).errors[-1]
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    window.source_edit.setText(str(empty))
+    window.dedupe_button.click()
+    qtbot.waitUntil(lambda: window.pages.currentWidget() is window.dup_page, timeout=20_000)
+    assert window.dup_page.group_list.item(0).text() == "No se encontraron duplicados."
+    window.move_duplicates()
+    window.trash_duplicates()
+    assert len(dialogs(window).errors) == 3

@@ -61,7 +61,7 @@ class _Job(QRunnable):
             log.warning("Thumbnail unavailable for %s: %s", self.path, exc)
             return
         for key, bbox in self.requests:
-            self.loader.ready.emit(key, to_qimage(crop_face(image, bbox)))
+            self.loader.ready.emit(key, to_qimage(crop_face(image, bbox, self.loader.size)))
 
 
 class ThumbnailLoader(QObject):
@@ -69,8 +69,9 @@ class ThumbnailLoader(QObject):
 
     ready = Signal(object, QImage)
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, parent: QObject | None = None, size: int = THUMB_SIZE) -> None:
         super().__init__(parent)
+        self.size = size
         self.pool = QThreadPool(self)
 
     def request(self, items: Sequence[tuple[object, Path, Box | None]]) -> None:

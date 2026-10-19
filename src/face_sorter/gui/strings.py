@@ -79,3 +79,34 @@ MENU_UNDO_MANIFEST = "Deshacer desde un manifiesto…"
 MENU_QUIT = "Salir"
 CHOOSE_MANIFEST = "Elige el manifiesto (manifest_*.json)"
 MANIFEST_FILTER = "Manifiestos (manifest_*.json);;JSON (*.json)"
+
+# Duplicates (phase 5)
+FIND_DUPLICATES = "Buscar duplicados"
+DUP_NEED_SOURCE = "Elige la carpeta de fotos donde buscar duplicados."
+DUP_SCANNING = "Buscando duplicados: {done} de {total} fotos…"
+DUP_TITLE = "Duplicados en {folder}"
+DUP_HINT = (
+    "Marca los grupos que quieres limpiar. Los exactos vienen marcados; revisa los casi "
+    "duplicados antes de marcarlos. De cada grupo siempre se conserva una copia "
+    "(«CONSERVAR»), y nunca se borra nada: se mueven a «_duplicados»."
+)
+DUP_NONE = "No se encontraron duplicados."
+DUP_EXACT_ITEM = "Exacto · {n} copias"
+DUP_NEAR_ITEM = "Casi duplicado · {n} fotos (distancia ≤ {d})"
+DUP_KEEP_MARK = "✔ CONSERVAR"
+DUP_KEEP_THIS = "Conservar esta"
+DUP_MOVE = "Mover duplicados a _duplicados"
+DUP_TRASH = "Enviar a la papelera…"
+DUP_NOTHING_SELECTED = "No hay ningún grupo marcado."
+DUP_CONFIRM_MOVE_TITLE = "¿Mover duplicados?"
+DUP_CONFIRM_MOVE = (
+    "Se moverán {n} fotos duplicadas a:\n{folder}\n\n"
+    "De cada grupo se conserva una copia. Podrás devolverlas con «Deshacer». ¿Continuar?"
+)
+DUP_CONFIRM_TRASH_TITLE = "¿Enviar a la papelera?"
+DUP_CONFIRM_TRASH = (
+    "Se enviarán {n} fotos duplicadas a la PAPELERA del sistema.\n"
+    "De cada grupo se conserva una copia. Podrás recuperarlas desde la papelera, "
+    "pero no con «Deshacer». ¿Continuar?"
+)
+DUP_FAILED = "No se pudo completar la operación de duplicados"
