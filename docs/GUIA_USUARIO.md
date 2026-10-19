@@ -30,6 +30,15 @@ Si interrumpes el escaneo (Ctrl+C), lo ya analizado queda guardado y el siguient
 
 Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen listadas al final del resumen.
 
+## Duplicados (próximamente, Fase 5)
+1. Vista previa: `face-sorter dedupe "D:\Fotos" --dry-run`. Muestra cada grupo de duplicados y qué copia se conserva.
+   - **Exactos:** mismo contenido byte a byte.
+   - **Casi duplicados:** la misma foto redimensionada, recomprimida o en otro formato. La sensibilidad se ajusta con la distancia de Hamming en Ajustes.
+2. Revisa los grupos en la GUI, en la pestaña **Duplicados**, que compara las fotos lado a lado. Puedes cambiar qué copia se conserva. Por defecto se conserva la de mayor resolución, luego la de mayor tamaño, luego la de fecha EXIF más antigua y luego la de ruta más corta.
+3. Aplica: los duplicados se **mueven** a `_duplicados/` dentro de la carpeta analizada, con la misma estructura de subcarpetas. **Nunca se borran por defecto**, y siempre queda al menos una copia de cada foto.
+4. ¿Te arrepientes? `face-sorter undo <manifest.json>` las devuelve a su sitio.
+5. Para liberar espacio, puedes enviarlas a la **papelera del sistema**. Esto pide confirmación explícita y se puede recuperar desde la papelera.
+
 ## Deshacer
 `face-sorter undo <manifest.json>` revierte lo aplicado. También disponible en la GUI.
 

@@ -1,6 +1,6 @@
 # face-sorter
 
-Agrupa automáticamente las fotos de una carpeta por persona y las organiza en subcarpetas. Funciona 100 % local.
+Agrupa automáticamente las fotos de una carpeta por persona y las organiza en subcarpetas. También detecta fotos duplicadas y las retira de forma segura. Funciona 100 % local.
 
 ## Cómo funciona
 1. **Escanea** la carpeta de fotos (recursivo).
@@ -11,6 +11,8 @@ Agrupa automáticamente las fotos de una carpeta por persona y las organiza en s
 6. **Aplica**: copia las fotos a `Salida/<Persona>/` (los originales no se tocan).
 
 Carpetas especiales: `_sin_rostro/`, `_baja_calidad/`, `_sin_clasificar/`.
+
+**Duplicados** (en desarrollo): detecta copias exactas (SHA-256) y casi duplicados (dHash). Los mueve a `_duplicados/`, nunca los borra por defecto, siempre conserva al menos una copia y todo se puede deshacer.
 Una foto con varias personas se copia a la carpeta de cada una.
 
 ## Requisitos
@@ -31,6 +33,7 @@ python scripts/download_models.py
 ```
 face-sorter gui
 face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run
+face-sorter dedupe "D:\Fotos" --dry-run        # próximamente
 ```
 
 ## Documentación

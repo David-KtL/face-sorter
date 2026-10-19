@@ -3,6 +3,15 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Added
+- Documentación de la nueva Fase 5 "Duplicados": requisitos RF-16 a RF-20, arquitectura (`core/hashing.py`, `services/dedupe.py`, columnas `sha256` y `phash`), ADR 0006 y flujo en la guía de usuario.
+- Dependencia `send2trash` (papelera del sistema; se usará en la Fase 5).
+
+### Changed
+- Alcance ampliado: agrupación por persona + detección y retiro seguro de duplicados. La antigua Fase 5 pasa a ser la Fase 6 (v1.0.0).
+
+### Fixed
+- `docs/PROGRESO.md`: las filas del registro de sesiones estaban dentro de la tabla de fases.
 
 ## [0.2.0] - 2026-10-19
 ### Added
