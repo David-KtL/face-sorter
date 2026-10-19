@@ -85,6 +85,27 @@ class QualitySettings:
 
 
 @dataclass(frozen=True)
+class ClusteringSettings:
+    """Agglomerative clustering on cosine distance (RF-06, ADR 0002).
+
+    ``distance_threshold``: lower = stricter (splits a person into several groups);
+    higher = looser (risks mixing people). Groups with fewer than ``min_cluster_size``
+    faces go to the "unclassified" folder.
+    """
+
+    distance_threshold: float = 0.55
+    linkage: str = "average"
+    min_cluster_size: int = 2
+
+
+# Output folder names (RF-08). Person groups are numbered: Persona_001, Persona_002, ...
+PERSON_FOLDER_TEMPLATE = "Persona_{:03d}"
+NO_FACE_FOLDER = "_sin_rostro"
+LOW_QUALITY_FOLDER = "_baja_calidad"
+UNCLASSIFIED_FOLDER = "_sin_clasificar"
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings. Defaults are safe: copy mode, never touch originals."""
 
@@ -93,6 +114,7 @@ class Settings:
     output_mode: OutputMode = DEFAULT_OUTPUT_MODE
     detector: DetectorSettings = field(default_factory=DetectorSettings)
     quality: QualitySettings = field(default_factory=QualitySettings)
+    clustering: ClusteringSettings = field(default_factory=ClusteringSettings)
 
     @property
     def detector_model_path(self) -> Path:
