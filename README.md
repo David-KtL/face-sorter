@@ -1,6 +1,6 @@
 # face-sorter
 
-**v1.0.0** · Agrupa automáticamente las fotos de una carpeta por persona y las organiza en subcarpetas. También detecta fotos duplicadas y las retira de forma segura. Funciona 100 % local.
+**v1.0.1** · Agrupa automáticamente las fotos de una carpeta por persona y las organiza en subcarpetas. También detecta fotos duplicadas y las retira de forma segura. Funciona 100 % local.
 
 ## Cómo funciona
 1. **Escanea** la carpeta de fotos (recursivo).
