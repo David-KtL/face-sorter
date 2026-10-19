@@ -8,7 +8,7 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 ## Regla de oro (seguridad de datos)
 **Nunca modificar, mover ni borrar las fotos originales por defecto.** El modo por defecto es COPIAR (o hardlink) a una carpeta de salida. Mover solo con confirmación explícita del usuario. Toda operación sobre archivos debe poder deshacerse mediante un manifiesto (`manifest_*.json`) y tener modo `--dry-run`.
 
-**Duplicados (`face-sorter dedupe`):** los duplicados **NUNCA se borran por defecto**. La acción por defecto es moverlos a `_duplicados/` con manifiesto y `undo`. Siempre queda al menos una copia por grupo, y se verifica antes de actuar. Borrar solo enviando a la papelera del sistema (`send2trash`) y con confirmación explícita; jamás borrado permanente.
+**Duplicados (`face-sorter dedupe`):** los duplicados **NUNCA se borran por defecto**. La acción por defecto es moverlos a `_duplicados/` con manifiesto y `undo`. Siempre queda al menos una copia por grupo, y se verifica antes de actuar. `dedupe` sin `--dry-run` pide confirmación (s/N o `--yes`) antes de mover. Borrar solo enviando a la papelera del sistema (`send2trash`) y con confirmación explícita; jamás borrado permanente.
 
 ## Stack
 - Python 3.11+ (entorno de desarrollo: 3.12), `.venv`, `pyproject.toml`; versiones exactas en `requirements*.txt`
@@ -39,6 +39,8 @@ pip install -r requirements-dev.txt && pip install -e .
 python scripts/download_models.py                  # descarga modelos ONNX
 python scripts/download_lfw.py                     # dataset de prueba LFW en data/ (tests)
 face-sorter scan <carpeta> --out <salida> --dry-run [--plan plan.json] [--threshold 0.55]
+face-sorter scan <carpeta> --out <salida> [--mode copy|hardlink|move] [--yes]   # aplica
+face-sorter undo <salida>/manifest_<fecha>.json [--dry-run]
 face-sorter dedupe <carpeta> --dry-run                 # duplicados (Fase 5)
 face-sorter gui
 pytest -q --cov=face_sorter

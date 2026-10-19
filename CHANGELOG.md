@@ -3,7 +3,15 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-10-19
 ### Added
+- `services/organizer.py`: aplica el plan en modo copiar (por defecto), hardlink o mover. Nunca sobrescribe (si el destino es idéntico lo omite, si no usa `foto (2).jpg`), verifica cada copia por SHA-256, comprueba espacio libre y rutas antes de empezar, y cambia hardlink por copia si el destino está en otra unidad.
+- Modo mover en dos fases: el original solo se borra tras verificar todas sus copias y registrar la intención; requiere confirmación (`s/N` o `--yes`).
+- Manifiesto `manifest_<fecha>.json` incremental y atómico (también al interrumpir).
+- `face-sorter undo <manifest> [--dry-run]`: devuelve los originales movidos, borra solo lo creado que no se modificó y quita las carpetas vacías creadas.
+- `face-sorter scan` sin `--dry-run` aplica el plan; opción `--yes`.
+- ADR 0007: organizador seguro.
 - Documentación de la nueva Fase 5 "Duplicados": requisitos RF-16 a RF-20, arquitectura (`core/hashing.py`, `services/dedupe.py`, columnas `sha256` y `phash`), ADR 0006 y flujo en la guía de usuario.
 - Dependencia `send2trash` (papelera del sistema; se usará en la Fase 5).
 

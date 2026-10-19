@@ -32,7 +32,9 @@ python scripts/download_models.py
 ## Uso
 ```
 face-sorter gui
-face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run
+face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run   # vista previa
+face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas"             # copia
+face-sorter undo "D:\Fotos_Agrupadas\manifest_<fecha>.json"         # deshacer
 face-sorter dedupe "D:\Fotos" --dry-run        # próximamente
 ```
 
