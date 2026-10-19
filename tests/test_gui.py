@@ -58,6 +58,13 @@ class FakeDialogs:
     def show_text(self, title: str, text: str) -> None:
         self.shown.append(text)
 
+    def save_file(self, title: str, start: str, filters: str) -> str | None:
+        return self.answers.get("save")
+
+    def settings(self, current: Settings, on_delete_data: Any) -> Settings | None:
+        self.on_delete_data = on_delete_data
+        return self.answers.get("settings")
+
 
 class SlowDetector(FakeDetector):
     def detect(self, image: BGRImage) -> list[DetectedFace]:
@@ -451,3 +458,106 @@ def test_dedupe_needs_folder_and_nothing_selected(
     window.move_duplicates()
     window.trash_duplicates()
     assert len(dialogs(window).errors) == 3
+
+
+# -- settings, CSV, errors (phase 6) -----------------------------------------------------------
+
+
+def test_settings_dialog_roundtrip(qtbot: QtBot) -> None:
+    from face_sorter.config import settings_from_dict
+    from face_sorter.gui.settings_dialog import SettingsDialog
+
+    start = settings_from_dict({"clustering.distance_threshold": 0.5, "output_mode": "hardlink"})
+    dialog = SettingsDialog(start)
+    qtbot.addWidget(dialog)
+    assert dialog.threshold.value() == pytest.approx(0.5)
+    dialog.min_face.setValue(80)
+    dialog.dup_distance.setValue(3)
+    edited = dialog.settings()
+    assert edited.quality.min_face_size == 80 and edited.dedupe.max_distance == 3
+    assert edited.output_mode is OutputMode.HARDLINK
+    assert edited.cache_path == start.cache_path
+    dialog.defaults_button.click()
+    assert dialog.settings().clustering.distance_threshold == pytest.approx(0.55)
+
+
+def test_open_settings_saves_and_updates_mode(window: MainWindow) -> None:
+    from dataclasses import replace
+
+    from face_sorter.config import load_settings
+
+    new = replace(window.settings, output_mode=OutputMode.HARDLINK)
+    dialogs(window).answers["settings"] = new
+    window.open_settings()
+    assert window.settings is new
+    assert load_settings().output_mode is OutputMode.HARDLINK
+    assert window.mode_combo.currentData() == OutputMode.HARDLINK
+    assert "guardados" in dialogs(window).infos[-1]
+
+    dialogs(window).answers["settings"] = None  # cancelled
+    window.open_settings()
+    assert window.settings is new
+
+
+def test_delete_local_data(qtbot: QtBot, window: MainWindow, photos: Path, tmp_path: Path) -> None:
+    scan(qtbot, window, photos, tmp_path / "out")
+    qtbot.waitUntil(lambda: not window.busy, timeout=10_000)
+    cache = window.settings.cache_path
+    assert cache.exists()
+    dialogs(window).answers["ask"] = False
+    window.delete_local_data()
+    assert cache.exists()
+    dialogs(window).answers["ask"] = True
+    window.delete_local_data()
+    assert not cache.exists()
+    assert "borrados" in dialogs(window).infos[-1]
+
+
+def test_export_csv(qtbot: QtBot, window: MainWindow, photos: Path, tmp_path: Path) -> None:
+    scan(qtbot, window, photos, tmp_path / "out")
+    target = tmp_path / "reporte.csv"
+    dialogs(window).answers["save"] = str(target)
+    window.csv_button.click()
+    text = target.read_text(encoding="utf-8-sig")
+    assert text.splitlines()[0] == "foto;grupo;destino;n_rostros;estado"
+    assert sum(";Persona_001;" in line for line in text.splitlines()) == 3
+    assert "8 filas" in dialogs(window).infos[-1]
+
+
+def test_friendly_messages() -> None:
+    import errno
+
+    from face_sorter.gui.errors import friendly_message
+
+    assert "Permiso denegado" in friendly_message(PermissionError(13, "x", "C:/f.jpg"))
+    assert "espacio" in friendly_message(OSError(errno.ENOSPC, "full"))
+    assert "Memoria" in friendly_message(MemoryError())
+    assert friendly_message(ValueError("raro")) == "raro"
+    assert friendly_message(ValueError()) == "ValueError"
+
+
+def test_excepthook_shows_dialog(qtbot: QtBot, monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+
+    from PySide6.QtWidgets import QMessageBox
+
+    from face_sorter.gui.app import install_excepthook
+
+    shown: list[str] = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda parent, title, text: shown.append(text))
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    install_excepthook(Path("app.log"))
+    sys.excepthook(RuntimeError, RuntimeError("boom"), None)
+    assert "boom" in shown[0] and "app.log" in shown[0]
+
+
+def test_run_gui_starts_and_quits(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    from face_sorter.gui import app as gui_app
+
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)
+    monkeypatch.setattr(QApplication, "exec", lambda self: 0)
+    assert gui_app.run_gui(Settings()) == 0
