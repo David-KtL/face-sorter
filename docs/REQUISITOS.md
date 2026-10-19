@@ -1,7 +1,7 @@
 # Requisitos
 
 ## Alcance
-Agrupar por persona las fotos de una carpeta y organizarlas en subcarpetas. **Fuera de alcance:** nube, redes sociales, análisis de emociones/edad/género, edición de fotos, reconocimiento en video.
+Agrupar por persona las fotos de una carpeta y organizarlas en subcarpetas, y detectar y retirar de forma segura las fotos duplicadas. **Fuera de alcance:** nube, redes sociales, análisis de emociones/edad/género, edición de fotos, reconocimiento en video.
 
 ## Requisitos funcionales
 | ID | Requisito | Prioridad |
@@ -21,9 +21,14 @@ Agrupar por persona las fotos de una carpeta y organizarlas en subcarpetas. **Fu
 | RF-13 | CLI: `scan`, `gui`, `undo` | Media |
 | RF-14 | Ajustes: umbral de agrupación, calidad mínima, modo de salida, idioma | Media |
 | RF-15 | Exportar un reporte CSV (foto, grupo, n.º de rostros) | Baja |
+| RF-16 | Detectar duplicados exactos por SHA-256 | Alta |
+| RF-17 | Detectar casi duplicados (redimensionadas, recomprimidas, otro formato) con hash perceptual dHash (Pillow + numpy, sin dependencias nuevas) y distancia de Hamming configurable | Alta |
+| RF-18 | Elegir la copia a conservar por regla configurable (mayor resolución > mayor tamaño > fecha EXIF más antigua > ruta más corta), modificable por el usuario en la GUI | Alta |
+| RF-19 | Invariante: siempre queda al menos una copia por grupo de duplicados, verificada antes de actuar | Alta |
+| RF-20 | Acción por defecto sobre duplicados: mover a `_duplicados/` con manifiesto y `undo`; `--dry-run` siempre disponible; aplicar pide confirmación (s/N o `--yes`); enviar a la papelera solo con confirmación explícita | Alta |
 
 ## Requisitos no funcionales
-- **RNF-01 Seguridad de datos:** los originales jamás se modifican por defecto.
+- **RNF-01 Seguridad de datos:** los originales jamás se modifican ni se borran por defecto. Única excepción: `dedupe` mueve (no borra) los duplicados a `_duplicados/`, de forma reversible (RF-20).
 - **RNF-02 Privacidad:** 100 % local; ninguna imagen ni embedding sale del equipo.
 - **RNF-03 Rendimiento:** procesar ~5 000 fotos sin congelar la GUI (hilos de trabajo, barra de progreso, cancelable).
 - **RNF-04 Reanudable:** si se interrumpe el escaneo, continúa desde la caché.
@@ -35,3 +40,4 @@ Agrupar por persona las fotos de una carpeta y organizarlas en subcarpetas. **Fu
 - En un dataset de prueba etiquetado, pureza de grupos ≥ 95 % con el umbral por defecto.
 - Ninguna foto original alterada (verificado con hashes en tests).
 - `undo` restaura el estado previo de la carpeta de salida.
+- Duplicados: 100 % de los exactos y los casi duplicados de un dataset sintético detectados; nunca se retiran todas las copias de un grupo.

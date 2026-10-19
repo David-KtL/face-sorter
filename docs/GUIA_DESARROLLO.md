@@ -6,8 +6,10 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows  (Linux/macOS: source .venv/bin/activate)
 pip install -r requirements-dev.txt
 pip install -e .
-python scripts/download_models.py
+python scripts/download_models.py   # verifica el SHA-256 de cada modelo
 ```
+
+Para actualizar dependencias: cambia los rangos en `pyproject.toml`, reinstala en un `.venv` limpio y regenera `requirements.txt` (solo runtime) y `requirements-dev.txt` con `pip freeze`.
 
 ## Calidad (antes de cada commit)
 ```
@@ -28,7 +30,7 @@ Usa el comando `/cerrar-fase` de Claude Code. Hace: tests y lint, actualiza `PRO
 Toda decisión técnica relevante va en `docs/adr/NNNN-titulo.md` copiando `0000-plantilla.md`.
 
 ## Datos de prueba
-Nunca commitear fotos reales. Usa fixtures sintéticos o un dataset público (p. ej. LFW) descargado por script a `data/` (ignorado en git).
+Nunca commitear fotos reales. Usa fixtures sintéticos o el dataset público LFW: `python scripts/download_lfw.py` lo descarga a `data/lfw` (ignorado en git). Los tests que usan LFW o los modelos se saltan si no están descargados; sin ellos la cobertura de `core/` baja.
 
 ## Convenciones
 Código y commits en inglés; documentación en español; type hints y docstrings en API pública; sin rutas ni umbrales hardcodeados (usar `config.py`).
