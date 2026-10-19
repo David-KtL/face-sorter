@@ -52,7 +52,7 @@ Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen lista
 1. A la izquierda aparecen los grupos:
    - **Exacto:** el mismo archivo copiado varias veces. Vienen **marcados**.
    - **Casi duplicado:** la misma foto redimensionada, recomprimida o en otro formato. Vienen **sin marcar**: revísalos y márcalos si de verdad son la misma foto.
-2. A la derecha ves las copias lado a lado, con su resolución, tamaño y fecha. La marcada **✔ CONSERVAR** es la que se queda. Para cambiarla, selecciona otra y pulsa **Conservar esta**. Por defecto se conserva la de mayor resolución, luego la de mayor tamaño, luego la de fecha EXIF más antigua y luego la de ruta más corta.
+2. A la derecha ves las copias lado a lado, con su resolución, tamaño y fecha. La marcada **✔ CONSERVAR** es la que se queda. Para cambiarla, selecciona otra y pulsa **Conservar esta**. La regla por defecto se explica más abajo.
 3. **Mover duplicados a _duplicados**: los duplicados se **mueven** a `_duplicados/` dentro de la carpeta analizada, con la misma estructura de subcarpetas. **Nunca se borran por defecto**, y siempre queda al menos una copia de cada foto.
 4. ¿Te arrepientes? `face-sorter undo <manifest.json>` las devuelve a su sitio.
 5. **Enviar a la papelera…**: para liberar espacio. Pide confirmación explícita. Se recuperan desde la papelera del sistema (no con «Deshacer»).
