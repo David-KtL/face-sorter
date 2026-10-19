@@ -7,7 +7,7 @@ import os
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from face_sorter.config import SUPPORTED_EXTENSIONS
+from face_sorter.config import RESERVED_DIR_NAMES, SUPPORTED_EXTENSIONS
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +25,8 @@ def scan(
 ) -> Iterator[Path]:
     """Yield every supported image under ``root``, recursively and in a stable order.
 
-    Hidden files and folders (starting with ``.``) are skipped, symlinked folders are
+    Hidden files and folders (starting with ``.``) and reserved folders such as
+    ``_duplicados`` are skipped, symlinked folders are
     not followed (avoids loops), and any folder in ``exclude`` (for example the output
     folder, if it lives inside ``root``) is pruned.
 
@@ -45,7 +46,11 @@ def scan(
     for dirpath, dirnames, filenames in os.walk(root, onerror=on_error, followlinks=False):
         current = Path(dirpath)
         dirnames[:] = sorted(
-            d for d in dirnames if not d.startswith(".") and (current / d).resolve() not in excluded
+            d
+            for d in dirnames
+            if not d.startswith(".")
+            and d not in RESERVED_DIR_NAMES
+            and (current / d).resolve() not in excluded
         )
         for name in sorted(filenames):
             if name.startswith("."):

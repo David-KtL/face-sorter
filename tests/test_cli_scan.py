@@ -143,3 +143,60 @@ def test_scan_move_asks_and_respects_no(
     assert before == {
         p.relative_to(src).as_posix(): sha256_file(p) for p in src.rglob("*") if p.is_file()
     }
+
+
+# -- dedupe ---------------------------------------------------------------------------------
+
+
+def test_dedupe_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from tests.dupdata import build
+
+    ds = build(tmp_path / "photos", n_photos=2, n_unique=1)
+    cache = ["--cache", str(tmp_path / "c.sqlite"), "-q"]
+    before = sorted(p for p in ds.root.rglob("*") if p.is_file())
+
+    assert main(["dedupe", str(ds.root), "--dry-run", *cache]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "exact groups: 2" in out and "near-duplicate groups: 2" in out
+    assert sorted(p for p in ds.root.rglob("*") if p.is_file()) == before
+
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert main(["dedupe", str(ds.root), *cache]) == EXIT_ERROR  # needs --yes
+
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt: "n")
+    assert main(["dedupe", str(ds.root), *cache]) == EXIT_OK
+    assert "Nothing was changed" in capsys.readouterr().out
+
+    assert main(["dedupe", str(ds.root), "--near", "--yes", *cache]) == EXIT_OK
+    assert "Originals moved: 8" in capsys.readouterr().out
+    manifest = next((ds.root / "_duplicados").glob("manifest_*.json"))
+    assert main(["undo", str(manifest)]) == EXIT_OK
+    assert (
+        sorted(p for p in ds.root.rglob("*") if p.is_file() and "_duplicados" not in p.parts)
+        == before
+    )
+
+    assert main(["dedupe", str(tmp_path / "missing"), "--dry-run"]) == EXIT_ERROR
+
+
+def test_dedupe_cli_trash_and_nothing_to_do(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import send2trash
+
+    from tests.dupdata import build
+
+    sent: list[str] = []
+    monkeypatch.setattr(send2trash, "send2trash", sent.append)
+    ds = build(tmp_path / "photos", n_photos=2, n_unique=0)
+    cache = ["--cache", str(tmp_path / "c.sqlite"), "-q", "--yes"]
+    assert main(["dedupe", str(ds.root), "--trash", *cache]) == EXIT_OK
+    assert len(sent) == 2 and "trash" in capsys.readouterr().out.lower()
+
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert main(["dedupe", str(empty), *cache]) == EXIT_OK
+    assert "Nothing to do" in capsys.readouterr().out

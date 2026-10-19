@@ -16,6 +16,7 @@ from typing import Any
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 
 from face_sorter.config import Settings
+from face_sorter.services.dedupe import DedupeResult, DedupeScanner, trash_duplicates
 from face_sorter.services.organizer import apply_plan, undo
 from face_sorter.services.pipeline import Pipeline, ScanCancelled
 from face_sorter.services.plan import OrganizationPlan
@@ -115,6 +116,33 @@ class UndoWorker(Worker):
 
     def work(self) -> Any:
         return undo(self.manifest, dry_run=self.dry_run)
+
+
+class DedupeWorker(Worker):
+    """Finds duplicate groups (hashes are cached)."""
+
+    def __init__(self, settings: Settings, folder: Path) -> None:
+        super().__init__()
+        self.settings, self.folder = settings, folder
+
+    def work(self) -> Any:
+        with DedupeScanner(self.settings) as scanner:
+            return scanner.run(
+                self.folder,
+                progress=lambda d, t: self.progress.emit(d, t),
+                cancel=self._cancel.is_set,
+            )
+
+
+class TrashWorker(Worker):
+    """Sends the duplicates of the selected groups to the system trash."""
+
+    def __init__(self, result: DedupeResult, selected: list[str]) -> None:
+        super().__init__()
+        self.result, self.selected = result, selected
+
+    def work(self) -> Any:
+        return trash_duplicates(self.result, self.selected, confirm=True)
 
 
 def start(worker: Worker) -> QThread:

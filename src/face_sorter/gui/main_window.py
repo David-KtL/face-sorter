@@ -28,17 +28,26 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from face_sorter.config import OutputMode, Settings
+from face_sorter.config import DUPLICATES_FOLDER, OutputMode, Settings
 from face_sorter.core.clustering import UNCLASSIFIED
 from face_sorter.gui import strings as S
+from face_sorter.gui.duplicates_page import DuplicatesPage
 from face_sorter.gui.thumbnails import THUMB_SIZE, ThumbnailLoader
 from face_sorter.gui.workers import (
     ApplyWorker,
+    DedupeWorker,
     PipelineFactory,
     ScanWorker,
+    TrashWorker,
     UndoWorker,
     Worker,
     start,
+)
+from face_sorter.services.dedupe import (
+    DedupeError,
+    DedupeResult,
+    TrashReport,
+    build_dedupe_plan,
 )
 from face_sorter.services.organizer import ApplyResult, UndoReport
 from face_sorter.services.pipeline import FaceInfo, Pipeline, ScanResult
@@ -131,6 +140,7 @@ class MainWindow(QMainWindow):
         self._build_setup_page()
         self._build_review_page()
         self._build_result_page()
+        self._build_duplicates_page()
         self._build_menu()
         self.pages.setCurrentWidget(self.setup_page)
 
@@ -179,7 +189,10 @@ class MainWindow(QMainWindow):
         self.cancel_button = QPushButton(S.CANCEL)
         self.cancel_button.setEnabled(False)
         self.cancel_button.clicked.connect(self.cancel_work)
+        self.dedupe_button = QPushButton(S.FIND_DUPLICATES)
+        self.dedupe_button.clicked.connect(self.start_dedupe)
         buttons.addWidget(self.scan_button)
+        buttons.addWidget(self.dedupe_button)
         buttons.addWidget(self.cancel_button)
         buttons.addStretch()
         layout.addLayout(buttons)
@@ -346,7 +359,11 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_scan_finished)
         worker.failed.connect(self._on_scan_failed)
         worker.cancelled.connect(self._on_scan_cancelled)
+        self._start_setup_task(worker)
+
+    def _start_setup_task(self, worker: Worker) -> None:
         self.scan_button.setEnabled(False)
+        self.dedupe_button.setEnabled(False)
         self.cancel_button.setEnabled(True)
         self.progress.setVisible(True)
         self.progress.setRange(0, 0)
@@ -360,6 +377,7 @@ class MainWindow(QMainWindow):
 
     def _reset_setup(self) -> None:
         self.scan_button.setEnabled(True)
+        self.dedupe_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.progress.setVisible(False)
 
@@ -727,6 +745,111 @@ class MainWindow(QMainWindow):
         self.result_text.appendPlainText("\n" + S.UNDO_DONE + ":\n" + report.summary())
         self.dialogs.info(S.UNDO_DONE, report.summary())
 
+    # ================================================================= duplicates
+
+    def _build_duplicates_page(self) -> None:
+        self.dup_page = DuplicatesPage()
+        self.dup_page.back_button.clicked.connect(
+            lambda: self.pages.setCurrentWidget(self.setup_page)
+        )
+        self.dup_page.preview_button.clicked.connect(self.preview_duplicates)
+        self.dup_page.move_button.clicked.connect(self.move_duplicates)
+        self.dup_page.trash_button.clicked.connect(self.trash_duplicates)
+        self.pages.addWidget(self.dup_page)
+
+    def start_dedupe(self) -> None:
+        """Look for duplicates in the photo folder, in the background."""
+        if self.busy:
+            return
+        text = self.source_edit.text().strip()
+        if not text:
+            self.dialogs.error(S.APP_TITLE, S.DUP_NEED_SOURCE)
+            return
+        folder = Path(text).resolve()
+        if not folder.is_dir():
+            self.dialogs.error(S.APP_TITLE, S.SOURCE_MISSING)
+            return
+        worker = DedupeWorker(self.settings, folder)
+        worker.progress.connect(self._on_dedupe_progress)
+        worker.finished.connect(self._on_dedupe_finished)
+        worker.failed.connect(self._on_scan_failed)
+        worker.cancelled.connect(self._on_scan_cancelled)
+        self._start_setup_task(worker)
+
+    def _on_dedupe_progress(self, done: int, total: int) -> None:
+        self.progress.setRange(0, total)
+        self.progress.setValue(done)
+        self.status.setText(S.DUP_SCANNING.format(done=done, total=total))
+
+    def _on_dedupe_finished(self, result: DedupeResult) -> None:
+        self._reset_setup()
+        self.status.setText("")
+        self.dup_page.load(result)
+        self.pages.setCurrentWidget(self.dup_page)
+
+    def preview_duplicates(self) -> None:
+        """Show what the checked groups would do."""
+        result = self.dup_page.result
+        if result is not None:
+            self.dialogs.show_text(S.PREVIEW_TITLE, result.summary(self.dup_page.selected_ids()))
+
+    def move_duplicates(self) -> None:
+        """Move the duplicates of the checked groups to _duplicados (asks first)."""
+        result, selected = self.dup_page.result, self.dup_page.selected_ids()
+        if self.busy or result is None:
+            return
+        if not selected:
+            self.dialogs.error(S.EDIT_ERROR, S.DUP_NOTHING_SELECTED)
+            return
+        n = self.dup_page.n_selected_files()
+        folder = result.root / DUPLICATES_FOLDER
+        if not self.dialogs.ask(
+            S.DUP_CONFIRM_MOVE_TITLE, S.DUP_CONFIRM_MOVE.format(n=n, folder=folder)
+        ):
+            return
+        try:
+            plan = build_dedupe_plan(result, selected)
+        except DedupeError as exc:
+            self.dialogs.error(S.DUP_FAILED, str(exc))
+            return
+        worker = ApplyWorker(plan, confirm_move=True)
+        worker.finished.connect(self._on_apply_finished)
+        worker.failed.connect(self._on_dup_failed)
+        self._set_dup_buttons(False)
+        self._run(worker)
+
+    def trash_duplicates(self) -> None:
+        """Send the duplicates of the checked groups to the system trash (asks first)."""
+        result, selected = self.dup_page.result, self.dup_page.selected_ids()
+        if self.busy or result is None:
+            return
+        if not selected:
+            self.dialogs.error(S.EDIT_ERROR, S.DUP_NOTHING_SELECTED)
+            return
+        n = self.dup_page.n_selected_files()
+        if not self.dialogs.ask(S.DUP_CONFIRM_TRASH_TITLE, S.DUP_CONFIRM_TRASH.format(n=n)):
+            return
+        worker = TrashWorker(result, selected)
+        worker.finished.connect(self._on_trash_finished)
+        worker.failed.connect(self._on_dup_failed)
+        self._set_dup_buttons(False)
+        self._run(worker)
+
+    def _set_dup_buttons(self, enabled: bool) -> None:
+        for b in (self.dup_page.move_button, self.dup_page.trash_button):
+            b.setEnabled(enabled)
+
+    def _on_dup_failed(self, message: str) -> None:
+        self._set_dup_buttons(True)
+        self.dialogs.error(S.DUP_FAILED, message)
+
+    def _on_trash_finished(self, report: TrashReport) -> None:
+        self._set_dup_buttons(True)
+        self.last_apply = None
+        self.result_text.setPlainText(report.summary())
+        self.undo_button.setEnabled(False)
+        self.pages.setCurrentWidget(self.result_page)
+
     # ==================================================================== closing
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt API
@@ -735,4 +858,5 @@ class MainWindow(QMainWindow):
         if self.task_thread is not None:
             self.task_thread.wait()
         self.loader.wait()
+        self.dup_page.loader.wait()
         super().closeEvent(event)

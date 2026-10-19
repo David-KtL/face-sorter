@@ -46,14 +46,27 @@ Nunca se sobrescribe nada: si en la salida ya existe un archivo idéntico se omi
 
 Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen listadas al final del resumen.
 
-## Duplicados (próximamente, Fase 5)
-1. Vista previa: `face-sorter dedupe "D:\Fotos" --dry-run`. Muestra cada grupo de duplicados y qué copia se conserva.
-   - **Exactos:** mismo contenido byte a byte.
-   - **Casi duplicados:** la misma foto redimensionada, recomprimida o en otro formato. La sensibilidad se ajusta con la distancia de Hamming en Ajustes.
-2. Revisa los grupos en la GUI, en la pestaña **Duplicados**, que compara las fotos lado a lado. Puedes cambiar qué copia se conserva. Por defecto se conserva la de mayor resolución, luego la de mayor tamaño, luego la de fecha EXIF más antigua y luego la de ruta más corta.
-3. Aplica: los duplicados se **mueven** a `_duplicados/` dentro de la carpeta analizada, con la misma estructura de subcarpetas. **Nunca se borran por defecto**, y siempre queda al menos una copia de cada foto.
+## Duplicados
+**En la GUI:** elige la carpeta de fotos y pulsa **Buscar duplicados**.
+
+1. A la izquierda aparecen los grupos:
+   - **Exacto:** el mismo archivo copiado varias veces. Vienen **marcados**.
+   - **Casi duplicado:** la misma foto redimensionada, recomprimida o en otro formato. Vienen **sin marcar**: revísalos y márcalos si de verdad son la misma foto.
+2. A la derecha ves las copias lado a lado, con su resolución, tamaño y fecha. La marcada **✔ CONSERVAR** es la que se queda. Para cambiarla, selecciona otra y pulsa **Conservar esta**. Por defecto se conserva la de mayor resolución, luego la de mayor tamaño, luego la de fecha EXIF más antigua y luego la de ruta más corta.
+3. **Mover duplicados a _duplicados**: los duplicados se **mueven** a `_duplicados/` dentro de la carpeta analizada, con la misma estructura de subcarpetas. **Nunca se borran por defecto**, y siempre queda al menos una copia de cada foto.
 4. ¿Te arrepientes? `face-sorter undo <manifest.json>` las devuelve a su sitio.
-5. Para liberar espacio, puedes enviarlas a la **papelera del sistema**. Esto pide confirmación explícita y se puede recuperar desde la papelera.
+5. **Enviar a la papelera…**: para liberar espacio. Pide confirmación explícita. Se recuperan desde la papelera del sistema (no con «Deshacer»).
+
+**En la línea de comandos:**
+```
+face-sorter dedupe "D:\Fotos" --dry-run     # solo lista los grupos (* = se aplicaría)
+face-sorter dedupe "D:\Fotos"               # mueve los duplicados EXACTOS (pide s/N)
+face-sorter dedupe "D:\Fotos" --near        # incluye también los casi duplicados
+face-sorter dedupe "D:\Fotos" --trash       # a la papelera en vez de mover (pide s/N)
+```
+`--max-distance N` ajusta la sensibilidad de los casi duplicados (por defecto 6; menos = más estricto).
+
+Ten en cuenta: con la misma resolución se conserva el archivo más grande, así que una copia convertida a PNG puede ganar a su JPEG original. Revísalo en la GUI si te importa.
 
 ## Deshacer
 `face-sorter undo <salida>\manifest_<fecha>.json` revierte lo aplicado (prueba antes con `--dry-run`). En la GUI, antes de deshacer se muestra un resumen de lo que se hará.

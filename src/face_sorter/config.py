@@ -98,11 +98,28 @@ class ClusteringSettings:
     min_cluster_size: int = 2
 
 
+@dataclass(frozen=True)
+class DedupeSettings:
+    """Duplicate detection (RF-16 to RF-18, ADR 0006).
+
+    ``max_distance``: two photos whose 64-bit dHash differ in at most this many bits are
+    near duplicates. ``full_compare_limit``: up to this many photos, all pairs are
+    compared with vectorized numpy; above it, band bucketing is used.
+    """
+
+    max_distance: int = 6
+    full_compare_limit: int = 4000
+
+
 # Output folder names (RF-08). Person groups are numbered: Persona_001, Persona_002, ...
 PERSON_FOLDER_TEMPLATE = "Persona_{:03d}"
 NO_FACE_FOLDER = "_sin_rostro"
 LOW_QUALITY_FOLDER = "_baja_calidad"
 UNCLASSIFIED_FOLDER = "_sin_clasificar"
+# Duplicates (phase 5) are moved here, inside the analysed folder, keeping relative paths.
+DUPLICATES_FOLDER = "_duplicados"
+# Folder names the scanner always skips, wherever they appear.
+RESERVED_DIR_NAMES: frozenset[str] = frozenset({DUPLICATES_FOLDER})
 
 # Organizer (phase 3): manifests go to the output folder, e.g. manifest_20261019-153000.json
 MANIFEST_PREFIX = "manifest_"
@@ -121,6 +138,7 @@ class Settings:
     detector: DetectorSettings = field(default_factory=DetectorSettings)
     quality: QualitySettings = field(default_factory=QualitySettings)
     clustering: ClusteringSettings = field(default_factory=ClusteringSettings)
+    dedupe: DedupeSettings = field(default_factory=DedupeSettings)
 
     @property
     def detector_model_path(self) -> Path:
