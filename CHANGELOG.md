@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-19
+### Added
+- Detección de duplicados: exactos (SHA-256) y casi duplicados (dHash de 64 bits + distancia de Hamming, umbral 6 calibrado en LFW), con búsqueda vectorizada y por bandas (`core/hashing.py`).
+- `services/dedupe.py`: grupos, copia a conservar (mayor resolución > mayor tamaño > fecha EXIF más antigua > ruta más corta; se puede cambiar), verificación de que siempre queda una copia intacta, mover a `_duplicados/` con manifiesto y `undo`, o enviar a la papelera (`send2trash`) con confirmación.
+- `face-sorter dedupe <carpeta> [--dry-run] [--near] [--max-distance N] [--trash] [--yes]`. Por defecto solo actúa sobre duplicados exactos.
+- GUI: botón "Buscar duplicados" y página con grupos marcables y fotos lado a lado (resolución, tamaño, fecha), "Conservar esta", vista previa, mover y papelera.
+- Caché: tabla `image_hashes` (esquema v2); una caché v1 se actualiza sin perder los rostros. El análisis de rostros guarda los hashes de paso.
+- ADR 0009.
+
+### Changed
+- El escáner ignora siempre la carpeta `_duplicados/`.
+
 ## [0.4.0] - 2026-10-19
 ### Added
 - GUI (`face-sorter gui`): elegir carpetas y modo; escaneo en segundo plano con barra de progreso y botón Cancelar; revisión de grupos con miniaturas de rostros (renombrar, unir, separar en grupo nuevo, mover a otro grupo, excluir rostro o foto, restaurar); vista previa; aplicar (pide confirmación para mover); deshacer la última operación o cualquier manifiesto (menú Archivo).

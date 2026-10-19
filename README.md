@@ -12,7 +12,7 @@ Agrupa automáticamente las fotos de una carpeta por persona y las organiza en s
 
 Carpetas especiales: `_sin_rostro/`, `_baja_calidad/`, `_sin_clasificar/`.
 
-**Duplicados** (en desarrollo): detecta copias exactas (SHA-256) y casi duplicados (dHash). Los mueve a `_duplicados/`, nunca los borra por defecto, siempre conserva al menos una copia y todo se puede deshacer.
+**Duplicados**: detecta copias exactas (SHA-256) y casi duplicados (dHash). Los mueve a `_duplicados/`, nunca los borra por defecto, siempre conserva al menos una copia y todo se puede deshacer.
 Una foto con varias personas se copia a la carpeta de cada una.
 
 ## Requisitos
@@ -35,7 +35,8 @@ face-sorter gui
 face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas" --dry-run   # vista previa
 face-sorter scan "D:\Fotos" --out "D:\Fotos_Agrupadas"             # copia
 face-sorter undo "D:\Fotos_Agrupadas\manifest_<fecha>.json"         # deshacer
-face-sorter dedupe "D:\Fotos" --dry-run        # próximamente
+face-sorter dedupe "D:\Fotos" --dry-run                            # lista duplicados
+face-sorter dedupe "D:\Fotos"                                      # mueve exactos a _duplicados
 ```
 
 ## Documentación

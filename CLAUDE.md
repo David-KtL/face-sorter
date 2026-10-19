@@ -41,7 +41,8 @@ python scripts/download_lfw.py                     # dataset de prueba LFW en da
 face-sorter scan <carpeta> --out <salida> --dry-run [--plan plan.json] [--threshold 0.55]
 face-sorter scan <carpeta> --out <salida> [--mode copy|hardlink|move] [--yes]   # aplica
 face-sorter undo <salida>/manifest_<fecha>.json [--dry-run]
-face-sorter dedupe <carpeta> --dry-run                 # duplicados (Fase 5)
+face-sorter dedupe <carpeta> --dry-run                 # lista duplicados
+face-sorter dedupe <carpeta> [--near] [--trash] [--yes] # mueve a _duplicados (o papelera)
 face-sorter gui
 pytest -q --cov=face_sorter
 ruff check . && black --check . && mypy src
