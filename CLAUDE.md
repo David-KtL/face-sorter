@@ -67,7 +67,7 @@ ruff check . && black --check . && mypy src
 4. Si hay decisiones ambiguas, pregunta antes de asumir.
 
 ## Estado actual
-v1.0.0 publicada (todas las fases cerradas). Ver `docs/PROGRESO.md` y `docs/VERIFICACION.md`.
+v1.0.1 publicada (todas las fases cerradas). Ver `docs/PROGRESO.md` y `docs/VERIFICACION.md`.
 
 ## Notas para mantenimiento
 - La app es **solo en español**: textos de GUI en `gui/strings.py`; CLI y resúmenes de servicios en español; logs y código en inglés.

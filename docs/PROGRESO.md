@@ -1,6 +1,6 @@
 # Progreso
 
-**Fase actual:** proyecto completo (v1.0.0). Verificación de requisitos en `docs/VERIFICACION.md`.
+**Fase actual:** proyecto completo (v1.0.1). Verificación de requisitos en `docs/VERIFICACION.md`.
 
 | Fase | Entregable | Aceptación | Estado | Tag | Fecha |
 |---|---|---|---|---|---|

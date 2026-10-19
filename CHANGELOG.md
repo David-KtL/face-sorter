@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-19
+### Added
+- Lanzador para Windows `Iniciar face-sorter.bat`: con doble clic prepara el entorno y descarga los modelos la primera vez, y luego abre la GUI sin ventana de consola.
+
+### Fixed
+- Guía de usuario: la regla de la copia a conservar entre duplicados estaba desactualizada.
+
 ## [1.0.0] - 2026-10-19
 ### Added
 - Ajustes persistentes (RF-14): umbral de agrupación, mínimo de rostros por grupo, calidad mínima (tamaño, confianza, nitidez), sensibilidad de casi duplicados y modo por defecto. Se guardan en un JSON de usuario con validación de rangos; un archivo dañado nunca impide arrancar. La CLI y la GUI los usan.
