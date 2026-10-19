@@ -14,6 +14,7 @@ Placement rules for each image:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -33,6 +34,9 @@ from face_sorter.core.clustering import UNCLASSIFIED
 from face_sorter.services.pipeline import FaceInfo, ScanResult
 
 PLAN_FORMAT_VERSION = 1
+
+FaceKey = tuple[Path, int]
+"""Identifies a face: (image path, face index within the image)."""
 
 
 class GroupKind(StrEnum):
@@ -100,17 +104,19 @@ class OrganizationPlan:
     items: list[PlanItem]
     faces: list[PlanFace]
     errors: list[PlanError]
+    excluded_images: list[Path] = field(default_factory=list)
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds"))
 
     def summary(self) -> str:
         """Human-readable summary for the terminal."""
-        total = len({i.source for i in self.items}) + len(self.errors)
+        total = len({i.source for i in self.items}) + len(self.errors) + len(self.excluded_images)
         persons = [g for g in self.groups if g.kind is GroupKind.PERSON]
         lines = [
             f"Source: {self.source_root}",
             f"Output: {self.output_root}  (mode: {self.mode.value})",
             f"Images: {total} | person groups: {len(persons)} | "
-            f"copies planned: {len(self.items)} | errors: {len(self.errors)}",
+            f"copies planned: {len(self.items)} | errors: {len(self.errors)}"
+            + (f" | excluded: {len(self.excluded_images)}" if self.excluded_images else ""),
             "",
             f"{'Folder':<20} {'Images':>7} {'Faces':>7}",
             f"{'-' * 20} {'-' * 7} {'-' * 7}",
@@ -157,6 +163,7 @@ class OrganizationPlan:
                 for f in self.faces
             ],
             "errors": [{"source": str(e.source), "error": e.error} for e in self.errors],
+            "excluded_images": [str(p) for p in self.excluded_images],
         }
 
     def save(self, path: Path) -> None:
@@ -175,34 +182,70 @@ def build_plan(
     result: ScanResult,
     output_root: Path,
     mode: OutputMode = OutputMode.COPY,
+    *,
+    names: Mapping[int, str] | None = None,
+    excluded_faces: Collection[FaceKey] = (),
+    excluded_images: Collection[Path] = (),
 ) -> OrganizationPlan:
-    """Turn a scan result into a plan. Does not touch any file."""
-    groups: dict[str, Group] = {
-        person_folder(k): Group(person_folder(k), GroupKind.PERSON, k)
-        for k in range(result.n_clusters)
-    }
+    """Turn a scan result into a plan. Does not touch any file.
+
+    Args:
+        names: custom folder name per cluster label (default ``Persona_NNN``). Names
+            must be unique and must not clash with the special folders.
+        excluded_faces: faces to ignore, as ``(image path, face index)`` (e.g. false
+            detections). An image whose faces are all excluded counts as "no face".
+        excluded_images: images that must not be copied at all.
+
+    Raises:
+        ValueError: if two groups would get the same folder name.
+    """
+    names = dict(names or {})
+    excluded_f = set(excluded_faces)
+    excluded_i = set(excluded_images)
+
+    def folder_of(label: int) -> str:
+        return names.get(label) or person_folder(label)
+
+    labels = sorted(
+        {
+            f.label
+            for f in result.faces
+            if f.usable and f.label != UNCLASSIFIED and (f.image, f.index) not in excluded_f
+        }
+    )
+    groups: dict[str, Group] = {}
     special = {
         NO_FACE_FOLDER: GroupKind.NO_FACE,
         LOW_QUALITY_FOLDER: GroupKind.LOW_QUALITY,
         UNCLASSIFIED_FOLDER: GroupKind.UNCLASSIFIED,
     }
+    for label in labels:
+        folder = folder_of(label)
+        if folder.lower() in {g.lower() for g in groups} | {s.lower() for s in special}:
+            raise ValueError(f"Duplicate or reserved group folder name: {folder}")
+        groups[folder] = Group(folder, GroupKind.PERSON, label)
     for folder, kind in special.items():
         groups[folder] = Group(folder, kind)
 
     errors: list[PlanError] = []
     faces: list[PlanFace] = []
     placements: list[tuple[Path, str]] = []
+    skipped: list[Path] = []
 
     for img in result.images:
         if img.status is ImageStatus.ERROR:
             errors.append(PlanError(img.path, img.error or "unknown error"))
             continue
-        folders = _folders_for(img.faces)
+        if img.path in excluded_i:
+            skipped.append(img.path)
+            continue
+        kept_faces = tuple(f for f in img.faces if (f.image, f.index) not in excluded_f)
+        folders = _folders_for(kept_faces, folder_of)
         for folder in folders:
             groups[folder].images.append(img.path)
             placements.append((img.path, folder))
-        for f in img.faces:
-            folder = _face_group(f)
+        for f in kept_faces:
+            folder = _face_group(f, folder_of)
             groups[folder].n_faces += 1
             faces.append(
                 PlanFace(
@@ -218,19 +261,28 @@ def build_plan(
 
     items = _assign_names(placements)
     kept = [g for g in groups.values() if g.kind is GroupKind.PERSON or g.images or g.n_faces]
-    return OrganizationPlan(Path(result.root), Path(output_root), mode, kept, items, faces, errors)
+    return OrganizationPlan(
+        Path(result.root),
+        Path(output_root),
+        mode,
+        kept,
+        items,
+        faces,
+        errors,
+        excluded_images=skipped,
+    )
 
 
-def _face_group(face: FaceInfo) -> str:
+def _face_group(face: FaceInfo, folder_of: Callable[[int], str]) -> str:
     """Logical group of a face (where the GUI shows it), even if the photo is not copied there."""
     if not face.usable:
         return LOW_QUALITY_FOLDER
     if face.label == UNCLASSIFIED:
         return UNCLASSIFIED_FOLDER
-    return person_folder(face.label)
+    return folder_of(face.label)
 
 
-def _folders_for(faces: tuple[FaceInfo, ...]) -> list[str]:
+def _folders_for(faces: tuple[FaceInfo, ...], folder_of: Callable[[int], str]) -> list[str]:
     if not faces:
         return [NO_FACE_FOLDER]
     usable = [f for f in faces if f.usable]
@@ -238,7 +290,7 @@ def _folders_for(faces: tuple[FaceInfo, ...]) -> list[str]:
         return [LOW_QUALITY_FOLDER]
     persons = sorted({f.label for f in usable if f.label != UNCLASSIFIED})
     if persons:
-        return [person_folder(label) for label in persons]
+        return [folder_of(label) for label in persons]
     return [UNCLASSIFIED_FOLDER]
 
 

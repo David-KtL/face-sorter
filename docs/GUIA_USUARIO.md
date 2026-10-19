@@ -3,13 +3,19 @@
 ## Flujo básico
 1. Abre la app: `face-sorter gui`.
 2. **Elige la carpeta de fotos** y la **carpeta de salida** (distinta de la de origen).
-3. Pulsa **Escanear**. Verás una barra de progreso; puedes cancelar y reanudar después.
-4. **Revisa los grupos**:
-   - Renombra (`Persona_001` → `Ana`).
-   - Une dos grupos que son la misma persona.
-   - Separa o excluye fotos mal asignadas.
-5. Pulsa **Vista previa (dry-run)** para ver qué se copiará.
-6. Pulsa **Aplicar**. Por defecto se **copia**; tus originales no se tocan.
+   Elige también el **modo**: Copiar (recomendado), Enlace duro o Mover.
+3. Pulsa **Escanear**. Verás una barra de progreso. Puedes cancelar: lo analizado se guarda y el próximo escaneo continúa desde ahí.
+4. **Revisa los grupos**. A la izquierda está la lista de personas (con la foto de una cara) y, al final, Sin clasificar, Baja calidad, Excluidos y Sin rostro. A la derecha están los rostros del grupo elegido (Ctrl+clic o Mayús+clic para seleccionar varios).
+   - **Renombrar…**: `Persona_001` → `Ana`. Será el nombre de la carpeta. Los caracteres no válidos (`\ / : * ? " < > |`) se cambian por `_`, y no se permiten dos grupos con el mismo nombre.
+   - **Unir grupos seleccionados**: selecciona dos o más grupos (Ctrl+clic) que sean la misma persona.
+   - **Separar en grupo nuevo**: los rostros seleccionados pasan a un grupo nuevo.
+   - **Mover a grupo…**: lleva rostros a otro grupo. También sirve para asignar los "Sin clasificar".
+   - **Excluir rostro**: ignora una detección errónea o a un desconocido.
+   - **Excluir foto**: esa foto no se copiará.
+   - **Restaurar**: en "Excluidos", devuelve los rostros seleccionados.
+5. Pulsa **Vista previa** para ver qué se copiará, sin tocar nada.
+6. Pulsa **Aplicar**. Por defecto se **copia**; tus originales no se tocan. Si elegiste Mover, se pide confirmación.
+7. En el resultado puedes **Abrir carpeta de salida** o **Deshacer**. Para deshacer una operación anterior: menú **Archivo → Deshacer desde un manifiesto…**.
 
 ## Línea de comandos
 Vista previa sin tocar ningún archivo:
@@ -50,7 +56,7 @@ Las fotos que no se pueden leer (archivos dañados) no se copian; aparecen lista
 5. Para liberar espacio, puedes enviarlas a la **papelera del sistema**. Esto pide confirmación explícita y se puede recuperar desde la papelera.
 
 ## Deshacer
-`face-sorter undo <salida>\manifest_<fecha>.json` revierte lo aplicado (prueba antes con `--dry-run`). También estará disponible en la GUI.
+`face-sorter undo <salida>\manifest_<fecha>.json` revierte lo aplicado (prueba antes con `--dry-run`). En la GUI, antes de deshacer se muestra un resumen de lo que se hará.
 - Devuelve a su sitio los originales movidos.
 - Borra solo los archivos que creó la aplicación y que no modificaste después; los modificados se conservan y se listan.
 - Quita las carpetas que creó si quedaron vacías. El manifiesto se conserva como registro.

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import face_sorter
-from face_sorter.__main__ import EXIT_NOT_IMPLEMENTED, build_parser, main
+from face_sorter.__main__ import build_parser, main
 from face_sorter.config import OutputMode, Settings
 
 
@@ -35,9 +35,11 @@ def test_scan_parses_with_safe_defaults(tmp_path: Path) -> None:
     assert args.dry_run is False
 
 
-@pytest.mark.parametrize("argv", [["gui"]])
-def test_commands_not_implemented_yet(argv: list[str]) -> None:
-    assert main(argv) == EXIT_NOT_IMPLEMENTED
+def test_gui_command_launches_the_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    import face_sorter.gui.app as app
+
+    monkeypatch.setattr(app, "run_gui", lambda settings=None: 0)
+    assert main(["gui"]) == 0
 
 
 def test_command_is_required() -> None:
