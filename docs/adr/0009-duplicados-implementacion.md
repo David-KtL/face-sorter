@@ -36,4 +36,5 @@ El ADR 0006 fija SHA-256 + dHash. Al implementarlo hubo que decidir dónde guard
 - **Umbral 8-10:** detectaría también las miniaturas muy reducidas, a costa de agrupar retratos distintos.
 
 ## Consecuencias
-- **Comportamiento a vigilar en la regla RF-18:** con la misma resolución gana el archivo más grande, así que una conversión a PNG (más pesada) se conserva frente a su JPEG original. Si molesta en la práctica, se puede ajustar la regla (por ejemplo, preferir el formato original o la fecha EXIF antes que el tamaño). Se puede cambiar a mano en la GUI con "Conservar esta".
+- **Actualización (v1.0.0):** la regla pasó a ser mayor resolución > fecha EXIF más antigua > mayor tamaño > ruta más corta, para resolver el caso descrito a continuación. Las conversiones suelen perder la fecha EXIF y ahora no ganan al original.
+- **Comportamiento detectado (v0.5.0) en la regla RF-18:** con la misma resolución gana el archivo más grande, así que una conversión a PNG (más pesada) se conserva frente a su JPEG original. Si molesta en la práctica, se puede ajustar la regla (por ejemplo, preferir el formato original o la fecha EXIF antes que el tamaño). Se puede cambiar a mano en la GUI con "Conservar esta".

@@ -13,7 +13,7 @@
 | 6 | Ajustes, reporte CSV, manejo de errores, empaquetado opcional, docs finales | Todo RF cumplido | Pendiente | v1.0.0 | |
 
 ## Pendientes y bloqueos
-- Fase 6, a valorar: la regla RF-18 conserva un PNG convertido frente a su JPEG original (mismo tamaño en píxeles, archivo más grande). Ver ADR 0009.
+- (ninguno)
 
 ## Registro de sesiones
 | Fecha | Qué se hizo | Siguiente paso |

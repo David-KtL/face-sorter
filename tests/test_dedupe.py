@@ -68,7 +68,7 @@ def test_detects_all_exact_and_near_duplicates(ds: DupSet, scanner: DedupeScanne
     assert not grouped & set(ds.unique)  # distinct photos never grouped
 
 
-def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner) -> None:
+def test_keep_rule_resolution_date_size_path(ds: DupSet, scanner: DedupeScanner) -> None:
     result = scanner.run(ds.root)
     for g in result.groups:
         if g.kind is DupKind.EXACT:
@@ -76,8 +76,10 @@ def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner)
             assert g.keep.path.name.startswith("p") and "copia" not in g.keep.path.name
         else:
             assert g.keep.pixels == max(p.pixels for p in g.photos)
-            same_res = [p for p in g.photos if p.pixels == g.keep.pixels]
-            assert g.keep.size == max(p.size for p in same_res)
+            # The dated JPEG original wins over its heavier PNG conversion (no EXIF date).
+            assert g.keep.path.parent.name == "fotos" and g.keep.path.suffix == ".jpg"
+            png = next(p for p in g.photos if p.path.suffix == ".png")
+            assert png.size > g.keep.size
 
     def photo(name: str, w: int, size: int, date: str | None) -> Photo:
         return Photo(Path(name), size, ImageHashes("x", 0, w, w, date))
@@ -92,7 +94,7 @@ def test_keep_rule_resolution_size_date_path(ds: DupSet, scanner: DedupeScanner)
         ],
         key=keep_key,
     )
-    assert [p.path.name for p in ranked] == ["hires.jpg", "big.jpg", "old.jpg", "a.jpg", "name.jpg"]
+    assert [p.path.name for p in ranked] == ["hires.jpg", "old.jpg", "a.jpg", "name.jpg", "big.jpg"]
 
 
 def test_default_selection_is_exact_only(ds: DupSet, scanner: DedupeScanner) -> None:

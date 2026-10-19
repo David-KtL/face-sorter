@@ -3,6 +3,8 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
+### Changed
+- Regla de la copia a conservar entre duplicados: mayor resolución > **fecha EXIF más antigua** > mayor tamaño > ruta más corta. Una conversión más pesada (p. ej. a PNG) ya no gana a su JPEG original.
 
 ## [0.5.0] - 2026-10-19
 ### Added

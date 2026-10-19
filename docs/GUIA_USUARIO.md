@@ -66,7 +66,7 @@ face-sorter dedupe "D:\Fotos" --trash       # a la papelera en vez de mover (pid
 ```
 `--max-distance N` ajusta la sensibilidad de los casi duplicados (por defecto 6; menos = más estricto).
 
-Ten en cuenta: con la misma resolución se conserva el archivo más grande, así que una copia convertida a PNG puede ganar a su JPEG original. Revísalo en la GUI si te importa.
+Qué copia se conserva por defecto: la de **mayor resolución**; si empatan, la de **fecha EXIF más antigua** (normalmente el original); después, la de **mayor tamaño** y, por último, la de ruta más corta.
 
 ## Deshacer
 `face-sorter undo <salida>\manifest_<fecha>.json` revierte lo aplicado (prueba antes con `--dry-run`). En la GUI, antes de deshacer se muestra un resumen de lo que se hará.

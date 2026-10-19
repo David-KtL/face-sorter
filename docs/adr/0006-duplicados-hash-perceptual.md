@@ -14,7 +14,7 @@ Restricciones: 100 % local, sin dependencias pesadas nuevas, eficiente con decen
 - **Exactos:** SHA-256 del archivo. Ya se calcula y guarda en la caché desde la Fase 1 (`images.hash`).
 - **Casi duplicados:** **dHash de 64 bits** implementado con Pillow + numpy (`core/hashing.py`). Pasos: se aplica la orientación EXIF, se convierte a gris, se reduce a 9×8 y cada bit indica si un píxel es mayor que su vecino derecho. Dos fotos son casi duplicadas si su **distancia de Hamming ≤ umbral**, configurable (valor inicial a calibrar en la Fase 5 con el dataset sintético).
 - **Búsqueda eficiente:** hashes en un array `uint64`. Se hace *bucketing* por bandas (principio del palomar: con `t + 1` bandas, dos hashes a distancia ≤ t comparten al menos una banda) y verificación vectorizada (XOR + `np.bitwise_count`). Nunca O(n²) en Python puro.
-- **Copia a conservar** (RF-18): mayor resolución > mayor tamaño > fecha EXIF más antigua > ruta más corta. El usuario puede cambiarla en la GUI.
+- **Copia a conservar** (RF-18): mayor resolución > fecha EXIF más antigua > mayor tamaño > ruta más corta (orden revisado en la v1.0.0, ver ADR 0009). El usuario puede cambiarla en la GUI.
 - **Acción** (RF-19, RF-20): mover a `_duplicados/` vía el `organizer`, con manifiesto y `undo`. Antes de actuar se verifica que cada grupo conserva al menos una copia. Para borrar solo se envía a la papelera (`send2trash`), con confirmación explícita.
 
 ## Alternativas consideradas

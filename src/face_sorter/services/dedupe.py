@@ -4,8 +4,8 @@
 2. Group: exact duplicates (same SHA-256) and near duplicates (dHash within
    ``max_distance``). A near group absorbs the exact copies of its members, so each
    photo belongs to at most one group that is applied.
-3. Choose the copy to keep (RF-18): highest resolution > largest file > oldest EXIF
-   date > shortest path. The user can override it.
+3. Choose the copy to keep (RF-18): highest resolution > oldest EXIF date > largest
+   file > shortest path. The user can override it.
 4. Act: move the other copies to ``<folder>/_duplicados/`` with the organizer (manifest
    + undo), or send them to the system trash with explicit confirmation. Before acting,
    every group is checked to keep at least one intact copy (RF-19).
@@ -58,12 +58,17 @@ class Photo:
         return (self.hashes.width or 0) * (self.hashes.height or 0)
 
 
-def keep_key(photo: Photo) -> tuple[int, int, str, int, str]:
-    """Sort key: the best copy to keep sorts first (RF-18)."""
+def keep_key(photo: Photo) -> tuple[int, str, int, int, str]:
+    """Sort key: the best copy to keep sorts first (RF-18).
+
+    Highest resolution > oldest EXIF date (photos without a date go last) > largest
+    file > shortest path. The date comes before the size so that a heavier conversion
+    (e.g. JPEG -> PNG, which loses the EXIF date) does not win over the original.
+    """
     return (
         -photo.pixels,
+        photo.hashes.taken_at or "9999",
         -photo.size,
-        photo.hashes.taken_at or "9999",  # photos without a date go last
         len(str(photo.path)),
         str(photo.path).lower(),
     )
