@@ -1,7 +1,7 @@
 """Central configuration for face-sorter.
 
 Every path, filename and tunable default lives here so the rest of the code never
-hardcodes them. Detection/quality/clustering thresholds are added in their phases.
+hardcodes them. Clustering thresholds are added in phase 2.
 """
 
 from __future__ import annotations
@@ -23,6 +23,9 @@ RECOGNIZER_MODEL_FILENAME = "face_recognition_sface_2021dec.onnx"
 SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
     {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 )
+
+# Decompression-bomb guard for Pillow; still allows large camera photos (~200 MP).
+MAX_IMAGE_PIXELS = 200_000_000
 
 
 class OutputMode(StrEnum):
@@ -47,12 +50,49 @@ def default_cache_path() -> Path:
 
 
 @dataclass(frozen=True)
+class DetectorSettings:
+    """YuNet parameters.
+
+    ``score_threshold`` is deliberately permissive: weak faces are still detected and
+    stored, and the quality filter decides later (so the user can change it without
+    re-scanning). Large photos are downscaled to ``max_input_side`` for speed.
+    """
+
+    score_threshold: float = 0.6
+    nms_threshold: float = 0.3
+    top_k: int = 5000
+    max_input_side: int = 1600
+
+    def fingerprint(self) -> str:
+        """Stable string that changes when cached detections would no longer be valid."""
+        return (
+            f"yunet:{DETECTOR_MODEL_FILENAME}:score={self.score_threshold}"
+            f":nms={self.nms_threshold}:maxside={self.max_input_side}"
+        )
+
+
+@dataclass(frozen=True)
+class QualitySettings:
+    """Thresholds of the low-quality face filter (RF-04).
+
+    ``min_face_size`` is in pixels of the original image (shorter side of the box).
+    ``min_sharpness`` is the Laplacian variance of the aligned 112x112 face crop.
+    """
+
+    min_face_size: int = 40
+    min_score: float = 0.8
+    min_sharpness: float = 25.0
+
+
+@dataclass(frozen=True)
 class Settings:
     """Runtime settings. Defaults are safe: copy mode, never touch originals."""
 
     models_dir: Path = field(default_factory=default_models_dir)
     cache_path: Path = field(default_factory=default_cache_path)
     output_mode: OutputMode = DEFAULT_OUTPUT_MODE
+    detector: DetectorSettings = field(default_factory=DetectorSettings)
+    quality: QualitySettings = field(default_factory=QualitySettings)
 
     @property
     def detector_model_path(self) -> Path:

@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-19
+### Added
+- `core/scanner.py`: búsqueda recursiva de imágenes soportadas (omite ocultos, no sigue enlaces de carpetas, permite excluir carpetas).
+- `core/image_io.py`: carga de imágenes respetando la orientación EXIF, con soporte HEIC; errores de lectura como `ImageLoadError`.
+- `core/detector.py`: detector YuNet; reduce fotos grandes para detectar y devuelve coordenadas en la imagen original.
+- `core/embedder.py`: interfaz `Embedder` intercambiable e implementación `SFaceEmbedder` (128 dims, normalizado).
+- `core/quality.py`: filtro de calidad por tamaño mínimo, confianza y nitidez, con umbrales en `config.py`.
+- `core/cache.py`: caché SQLite de rostros y embeddings; no recalcula fotos sin cambios y se invalida si cambia el modelo (ADR 0004).
+- `scripts/download_lfw.py` y tests de aceptación sobre LFW.
+
 ## [0.0.1] - 2026-10-19
 ### Added
 - Scaffold inicial del proyecto, documentación y configuración de Claude Code.
