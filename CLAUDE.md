@@ -9,8 +9,8 @@ Aplicación de escritorio en Python que **agrupa por persona** las fotos de una 
 **Nunca modificar, mover ni borrar las fotos originales por defecto.** El modo por defecto es COPIAR (o hardlink) a una carpeta de salida. Mover solo con confirmación explícita del usuario. Toda operación sobre archivos debe poder deshacerse mediante un manifiesto (`manifest_*.json`) y tener modo `--dry-run`.
 
 ## Stack
-- Python 3.11+, `.venv`, `pyproject.toml`
-- Detección + embedding: OpenCV `FaceDetectorYN` (YuNet) + `FaceRecognizerSF` (SFace), modelos ONNX. Embedder **intercambiable** (interfaz `Embedder`) para poder añadir InsightFace/ArcFace después.
+- Python 3.11+ (entorno de desarrollo: 3.12), `.venv`, `pyproject.toml`; versiones exactas en `requirements*.txt`
+- Detección + embedding: OpenCV 5.x `FaceDetectorYN` (YuNet) + `FaceRecognizerSF` (SFace, embedding de 128 dims), modelos ONNX verificados por SHA-256. Embedder **intercambiable** (interfaz `Embedder`) para poder añadir InsightFace/ArcFace después.
 - Clustering: scikit-learn (`AgglomerativeClustering` con distancia coseno y umbral; `HDBSCAN` opcional)
 - Caché: SQLite (`sqlite3` de la stdlib)
 - Imágenes: Pillow (+ `pillow-heif` para HEIC), respetar orientación EXIF
