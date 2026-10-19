@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import face_sorter
-from face_sorter.__main__ import build_parser, main
+from face_sorter.__main__ import _scan_settings, build_parser, main
 from face_sorter.config import OutputMode, Settings
 
 
@@ -31,7 +31,8 @@ def test_default_settings_are_safe() -> None:
 def test_scan_parses_with_safe_defaults(tmp_path: Path) -> None:
     args = build_parser().parse_args(["scan", str(tmp_path), "--out", str(tmp_path / "out")])
     assert args.command == "scan"
-    assert args.mode == "copy"
+    assert args.mode is None  # taken from the user's settings
+    assert _scan_settings(args).output_mode is OutputMode.COPY
     assert args.dry_run is False
 
 

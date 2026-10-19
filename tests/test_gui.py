@@ -263,7 +263,7 @@ def test_merge_split_move_exclude_restore(
     assert len(s.excluded_images) == 1
 
     window.preview_button.click()
-    assert "excluded: 1" in dialogs(window).shown[-1]
+    assert "excluidas: 1" in dialogs(window).shown[-1]
 
 
 def test_merge_needs_two_groups(
@@ -294,12 +294,12 @@ def test_apply_copy_then_undo(
         "ana_1.png",
         "ana_2.png",
     ]
-    assert "Created: 8" in window.result_text.toPlainText()
+    assert "Creados: 8" in window.result_text.toPlainText()
     assert before == {p.name: sha256_file(p) for p in photos.iterdir()}  # originals intact
 
     window.undo_button.click()
     qtbot.waitUntil(lambda: not window.undo_button.isEnabled(), timeout=20_000)
-    assert "delete 8" in dialogs(window).asked[-1]  # preview shown before undoing
+    assert "borrarían 8" in dialogs(window).asked[-1]  # preview shown before undoing
     assert list(out.rglob("*.png")) == []
 
 
@@ -339,7 +339,7 @@ def test_undo_from_manifest_file(
 
     window.undo_from_file()  # second time: already undone
     qtbot.waitUntil(lambda: len(dialogs(window).infos) == 2, timeout=20_000)
-    assert "already undone" in dialogs(window).infos[-1]
+    assert "ya se deshizo" in dialogs(window).infos[-1]
 
 
 # -- duplicates -----------------------------------------------------------------------------
@@ -375,7 +375,7 @@ def test_find_duplicates_shows_groups(qtbot: QtBot, dup_window: tuple[MainWindow
     )
 
     w.preview_duplicates()
-    assert "exact groups: 2" in dialogs(w).shown[-1]
+    assert "grupos exactos: 2" in dialogs(w).shown[-1]
 
 
 def test_change_keep_check_near_and_move_then_undo(
@@ -433,7 +433,7 @@ def test_trash_from_gui(
     w.dup_page.trash_button.click()
     qtbot.waitUntil(lambda: w.pages.currentWidget() is w.result_page, timeout=20_000)
     assert len(sent) == 2
-    assert "trash" in w.result_text.toPlainText().lower()
+    assert "papelera" in w.result_text.toPlainText().lower()
     assert not w.undo_button.isEnabled()
 
 

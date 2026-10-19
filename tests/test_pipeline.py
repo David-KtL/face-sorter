@@ -49,7 +49,7 @@ def test_run_clusters_people(pipeline: Pipeline, photos: Path) -> None:
     assert by_name["stranger.png"].faces[0].label == UNCLASSIFIED
     assert by_name["landscape.png"].faces == ()
     assert by_name["broken.jpg"].status is ImageStatus.ERROR
-    assert "corrupt" in (by_name["broken.jpg"].error or "")
+    assert "dañado" in (by_name["broken.jpg"].error or "")
     assert len(result.faces) == 7
 
 

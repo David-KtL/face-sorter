@@ -144,7 +144,7 @@ def test_exclude_and_include(session: ReviewSession) -> None:
     plan = session.plan(Path("/out"))
     assert "ana1.jpg" not in _dests(session)
     assert plan.excluded_images == [ROOT / "ana1.jpg"]
-    assert "excluded: 1" in plan.summary()
+    assert "excluidas: 1" in plan.summary()
 
     session.include_faces([key("ana1.jpg"), key("group.jpg", 1)])
     assert _dests(session)["ana1.jpg"] == ["Persona_001/ana1.jpg"]

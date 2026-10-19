@@ -74,7 +74,8 @@ class FaceDetector:
         model_path = Path(model_path)
         if not model_path.is_file():
             raise FileNotFoundError(
-                f"Detector model not found: {model_path}. Run: python scripts/download_models.py"
+                f"No se encuentra el modelo de detección: {model_path}. "
+                "Ejecuta: python scripts/download_models.py"
             )
         self.settings = settings or DetectorSettings()
         self._net = cv2.FaceDetectorYN.create(
