@@ -1,0 +1,42 @@
+# Entornos y caché de Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Datos sensibles: NUNCA subir fotos, embeddings ni salidas
+data/
+output/
+salida/
+*.db
+*.sqlite
+*.npy
+*.npz
+manifest_*.json
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.webp
+!docs/img/**
+
+# Modelos (se descargan con scripts/download_models.py)
+models/*.onnx
+
+# Logs
+*.log
+logs/
+
+# Claude Code (config local personal)
+.claude/settings.local.json

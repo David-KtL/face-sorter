@@ -1,0 +1,41 @@
+# Arquitectura
+
+## Flujo de datos
+```mermaid
+flowchart LR
+    A[Carpeta de fotos] --> B[scanner]
+    B --> C[detector YuNet]
+    C --> D[quality filter]
+    D --> E[embedder SFace]
+    E <--> F[(cache SQLite)]
+    E --> G[clustering]
+    G --> H[GUI revision]
+    H --> I[organizer]
+    I --> J[Carpeta de salida + manifest.json]
+```
+
+## Capas
+| Capa | Responsabilidad | No debe |
+|---|---|---|
+| `core/` | Lógica pura: escanear, detectar, calidad, embeddings, clustering, caché | Depender de la GUI |
+| `services/` | Orquesta el pipeline y la organización de archivos (copiar/enlazar/mover, manifiesto, undo) | Contener lógica de UI |
+| `gui/` | Vistas PySide6 y workers (QThread) | Hacer trabajo pesado en el hilo principal |
+| `__main__.py` | CLI (`scan`, `gui`, `undo`) | Duplicar lógica de `services/` |
+
+## Módulos clave
+- `core/scanner.py`: recorre carpetas y devuelve rutas de imágenes soportadas.
+- `core/detector.py`: wrapper de `cv2.FaceDetectorYN`; devuelve cajas, landmarks y score.
+- `core/quality.py`: filtros por tamaño mínimo, nitidez (varianza del Laplaciano) y score.
+- `core/embedder.py`: interfaz `Embedder` + implementación `SFaceEmbedder`. Intercambiable.
+- `core/clustering.py`: `AgglomerativeClustering` con distancia coseno y umbral; HDBSCAN opcional.
+- `core/cache.py`: SQLite con (ruta, tamaño, mtime, hash) → rostros y embeddings.
+- `services/pipeline.py`: scanner → detector → calidad → embedder → clustering.
+- `services/organizer.py`: aplica el plan; escribe `manifest_<fecha>.json`; implementa `undo`.
+
+## Modelo de datos (SQLite)
+- `images(id, path, size, mtime, hash, status)`
+- `faces(id, image_id, bbox, score, quality, embedding BLOB)`
+- `clusters(id, name, excluded)` y `face_cluster(face_id, cluster_id)`
+
+## Decisiones
+Ver `docs/adr/`.

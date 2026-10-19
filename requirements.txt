@@ -1,0 +1,9 @@
+# Fase 0: Claude Code debe reemplazar estos mínimos por versiones EXACTAS (pip freeze) tras instalar.
+opencv-python>=4.8
+numpy>=1.26
+scikit-learn>=1.3
+pillow>=10.0
+pillow-heif>=0.13
+PySide6>=6.6
+platformdirs>=4.0
+tqdm>=4.66
